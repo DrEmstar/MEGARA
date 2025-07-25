@@ -1,0 +1,302 @@
+EXE = apparent_position.exe astronomical_almanac.exe austral_flux.exe \
+      background_echelle.exe compute_barycentric.exe copy_keyword.exe \
+      correlate_images.exe cosmic_rays.exe create_thar.exe \
+      define_echelle.exe dispersion_data.exe dispersion_solution.exe \
+      extract_echelle.exe extract_image.exe filter_median.exe \
+      filter_star.exe filter_white.exe flat_extracted.exe flat_full.exe \
+      form_eflat.exe form_rflat.exe form_white.exe frame_image.exe \
+      hrsp_descriptors.exe identify_object.exe image_info.exe \
+      interpolate_solution.exe list_descriptors.exe list_keywords.exe \
+      modify_keywords.exe normalize_spectrum.exe pixel_shift.exe \
+      plot_echelle.exe prepare_echelle.exe radial_velocity.exe \
+      read_array.exe read_regression.exe rebin_echelle.exe rebin_image.exe \
+      reduce_star.exe reduce_white.exe rotate_arbitrary.exe show_fits.exe \
+      show_flux.exe splice_echelle.exe thorium_lines.exe \
+      transform_echelle.exe quad_align.exe unpack_echelle.exe \
+      velocity_correction.exe vertical_offset.exe
+
+OBJ = angle.o astro.o config.o datetime.o fits.o general.o numeric.o \
+      nutation.o process.o vector.o
+HEAD = angle.h astro.h config.h datetime.h fits.h general.h numeric.h \
+       nutation.h process.h vector.h
+
+all: $(EXE)
+
+angle.o: angle.c $(HEAD)
+	gcc -Wall -c angle.c
+astro.o: astro.c $(HEAD)
+	gcc -Wall -c astro.c
+config.o: config.c $(HEAD)
+	gcc -Wall -c config.c
+datetime.o: datetime.c $(HEAD)
+	gcc -Wall -c datetime.c
+fits.o: fits.c $(HEAD)
+	gcc -Wall -c fits.c
+general.o: general.c $(HEAD)
+	gcc -Wall -c general.c
+numeric.o: numeric.c $(HEAD)
+	gcc -Wall -c numeric.c
+nutation.o: nutation.c $(HEAD)
+	gcc -Wall -c nutation.c
+process.o: process.c $(HEAD)
+	gcc -Wall -c process.c
+vector.o: vector.c $(HEAD)
+	gcc -Wall -c vector.c
+
+apparent_position.exe: apparent_position.o $(OBJ)
+	gcc -Wall -o apparent_position $(OBJ) apparent_position.o -lm
+apparent_position.o: apparent_position.c $(HEAD)
+	gcc -Wall -c apparent_position.c
+
+astronomical_almanac.exe: astronomical_almanac.o $(OBJ)
+	gcc -Wall -o astronomical_almanac $(OBJ) astronomical_almanac.o -lm
+astronomical_almanac.o: astronomical_almanac.c $(HEAD)
+	gcc -Wall -c astronomical_almanac.c
+
+austral_flux.exe: austral_flux.o $(OBJ)
+	gcc -Wall -o austral_flux $(OBJ) austral_flux.o -lm
+austral_flux.o: austral_flux.c $(HEAD)
+	gcc -Wall -c austral_flux.c
+
+background_echelle.exe: background_echelle.o $(OBJ)
+	gcc -Wall -o background_echelle $(OBJ) background_echelle.o -lm
+background_echelle.o: background_echelle.c $(HEAD)
+	gcc -Wall -c background_echelle.c
+
+compute_barycentric.exe: compute_barycentric.o $(OBJ)
+	gcc -Wall -o compute_barycentric $(OBJ) compute_barycentric.o -lm
+compute_barycentric.o: compute_barycentric.c $(HEAD)
+	gcc -Wall -c compute_barycentric.c
+
+copy_keyword.exe: copy_keyword.o $(OBJ)
+	gcc -Wall -o copy_keyword $(OBJ) copy_keyword.o -lm
+copy_keyword.o: copy_keyword.c $(HEAD)
+	gcc -Wall -c copy_keyword.c
+
+correlate_images.exe: correlate_images.o $(OBJ)
+	gcc -Wall -o correlate_images $(OBJ) correlate_images.o -lm
+correlate_images.o: correlate_images.c $(HEAD)
+	gcc -Wall -c correlate_images.c
+
+cosmic_rays.exe: cosmic_rays.o $(OBJ)
+	gcc -Wall -o cosmic_rays $(OBJ) cosmic_rays.o -lm
+cosmic_rays.o: cosmic_rays.c $(HEAD)
+	gcc -Wall -c cosmic_rays.c
+
+create_thar.exe: create_thar.o $(OBJ)
+	gcc -Wall -o create_thar $(OBJ) create_thar.o -lm
+create_thar.o: create_thar.c $(HEAD)
+	gcc -Wall -c create_thar.c
+
+define_echelle.exe: define_echelle.o $(OBJ)
+	gcc -Wall -o define_echelle $(OBJ) define_echelle.o -lm
+define_echelle.o: define_echelle.c $(HEAD)
+	gcc -Wall -c define_echelle.c
+
+dispersion_data.exe: dispersion_data.o $(OBJ)
+	gcc -Wall -o dispersion_data $(OBJ) dispersion_data.o -lm
+dispersion_data.o: dispersion_data.c $(HEAD)
+	gcc -Wall -c dispersion_data.c
+
+dispersion_solution.exe: dispersion_solution.o $(OBJ)
+	gcc -Wall -o dispersion_solution $(OBJ) dispersion_solution.o -lm
+dispersion_solution.o: dispersion_solution.c $(HEAD)
+	gcc -Wall -c dispersion_solution.c
+
+extract_echelle.exe: extract_echelle.o $(OBJ)
+	gcc -Wall -o extract_echelle $(OBJ) extract_echelle.o -lm
+extract_echelle.o: extract_echelle.c $(HEAD)
+	gcc -Wall -c extract_echelle.c
+
+extract_image.exe: extract_image.o $(OBJ)
+	gcc -Wall -o extract_image $(OBJ) extract_image.o -lm
+extract_image.o: extract_image.c $(HEAD)
+	gcc -Wall -c extract_image.c
+
+filter_median.exe: filter_median.o $(OBJ)
+	gcc -Wall -o filter_median $(OBJ) filter_median.o -lm
+filter_median.o: filter_median.c $(HEAD)
+	gcc -Wall -c filter_median.c
+
+filter_star.exe: filter_star.o $(OBJ)
+	gcc -Wall -o filter_star $(OBJ) filter_star.o -lm
+filter_star.o: filter_star.c $(HEAD)
+	gcc -Wall -c filter_star.c
+
+filter_white.exe: filter_white.o $(OBJ)
+	gcc -Wall -o filter_white $(OBJ) filter_white.o -lm
+filter_white.o: filter_white.c $(HEAD)
+	gcc -Wall -c filter_white.c
+
+flat_extracted.exe: flat_extracted.o $(OBJ)
+	gcc -Wall -o flat_extracted $(OBJ) flat_extracted.o -lm
+flat_extracted.o: flat_extracted.c $(HEAD)
+	gcc -Wall -c flat_extracted.c
+
+flat_full.exe: flat_full.o $(OBJ)
+	gcc -Wall -o flat_full $(OBJ) flat_full.o -lm
+flat_full.o: flat_full.c $(HEAD)
+	gcc -Wall -c flat_full.c
+
+form_eflat.exe: form_eflat.o $(OBJ)
+	gcc -Wall -o form_eflat $(OBJ) form_eflat.o -lm
+form_eflat.o: form_eflat.c $(HEAD)
+	gcc -Wall -c form_eflat.c
+
+form_rflat.exe: form_rflat.o $(OBJ)
+	gcc -Wall -o form_rflat $(OBJ) form_rflat.o -lm
+form_rflat.o: form_rflat.c $(HEAD)
+	gcc -Wall -c form_rflat.c
+
+form_white.exe: form_white.o $(OBJ)
+	gcc -Wall -o form_white $(OBJ) form_white.o -lm
+form_white.o: form_white.c $(HEAD)
+	gcc -Wall -c form_white.c
+
+frame_image.exe: frame_image.o $(OBJ)
+	gcc -Wall -o frame_image $(OBJ) frame_image.o -lm
+frame_image.o: frame_image.c $(HEAD)
+	gcc -Wall -c frame_image.c
+
+hrsp_descriptors.exe: hrsp_descriptors.o $(OBJ)
+	gcc -Wall -o hrsp_descriptors $(OBJ) hrsp_descriptors.o -lm
+hrsp_descriptors.o: hrsp_descriptors.c $(HEAD)
+	gcc -Wall -c hrsp_descriptors.c
+
+image_info.exe: image_info.o $(OBJ)
+	gcc -Wall -o image_info $(OBJ) image_info.o -lm
+image_info.o: image_info.c $(HEAD)
+	gcc -Wall -c image_info.c
+
+identify_object.exe: identify_object.o $(OBJ)
+	gcc -Wall -o identify_object $(OBJ) identify_object.o -lm
+identify_object.o: identify_object.c $(HEAD)
+	gcc -Wall -c identify_object.c
+
+interpolate_solution.exe: interpolate_solution.o $(OBJ)
+	gcc -Wall -o interpolate_solution $(OBJ) interpolate_solution.o -lm
+interpolate_solution.o: interpolate_solution.c $(HEAD)
+	gcc -Wall -c interpolate_solution.c
+
+list_descriptors.exe: list_descriptors.o $(OBJ)
+	gcc -Wall -o list_descriptors $(OBJ) list_descriptors.o -lm
+list_descriptors.o: list_descriptors.c $(HEAD)
+	gcc -Wall -c list_descriptors.c
+
+list_keywords.exe: list_keywords.o $(OBJ)
+	gcc -Wall -o list_keywords $(OBJ) list_keywords.o -lm
+list_keywords.o: list_keywords.c $(HEAD)
+	gcc -Wall -c list_keywords.c
+
+modify_keywords.exe: modify_keywords.o $(OBJ)
+	gcc -Wall -o modify_keywords $(OBJ) modify_keywords.o -lm
+modify_keywords.o: modify_keywords.c $(HEAD)
+	gcc -Wall -c modify_keywords.c
+
+normalize_spectrum.exe: normalize_spectrum.o $(OBJ)
+	gcc -Wall -o normalize_spectrum $(OBJ) normalize_spectrum.o -lm
+normalize_spectrum.o: normalize_spectrum.c $(HEAD)
+	gcc -Wall -c normalize_spectrum.c
+
+pixel_shift.exe: pixel_shift.o $(OBJ)
+	gcc -Wall -o pixel_shift $(OBJ) pixel_shift.o -lm
+pixel_shift.o: pixel_shift.c $(HEAD)
+	gcc -Wall -c pixel_shift.c
+
+plot_echelle.exe: plot_echelle.o $(OBJ)
+	gcc -Wall -o plot_echelle $(OBJ) plot_echelle.o -lm
+plot_echelle.o: plot_echelle.c $(HEAD)
+	gcc -Wall -c plot_echelle.c
+
+prepare_echelle.exe: prepare_echelle.o $(OBJ)
+	gcc -Wall -o prepare_echelle $(OBJ) prepare_echelle.o -lm
+prepare_echelle.o: prepare_echelle.c $(HEAD)
+	gcc -Wall -c prepare_echelle.c
+
+radial_velocity.exe: radial_velocity.o $(OBJ)
+	gcc -Wall -o radial_velocity $(OBJ) radial_velocity.o -lm
+radial_velocity.o: radial_velocity.c $(HEAD)
+	gcc -Wall -c radial_velocity.c
+
+read_array.exe: read_array.o $(OBJ)
+	gcc -Wall -o read_array $(OBJ) read_array.o -lm
+read_array.o: read_array.c $(HEAD)
+	gcc -Wall -c read_array.c
+
+read_regression.exe: read_regression.o $(OBJ)
+	gcc -Wall -o read_regression $(OBJ) read_regression.o -lm
+read_regression.o: read_regression.c $(HEAD)
+	gcc -Wall -c read_regression.c
+
+rebin_echelle.exe: rebin_echelle.o $(OBJ)
+	gcc -Wall -o rebin_echelle $(OBJ) rebin_echelle.o -lm
+rebin_echelle.o: rebin_echelle.c $(HEAD)
+	gcc -Wall -c rebin_echelle.c
+
+rebin_image.exe: rebin_image.o $(OBJ)
+	gcc -Wall -o rebin_image $(OBJ) rebin_image.o -lm
+rebin_image.o: rebin_image.c $(HEAD)
+	gcc -Wall -c rebin_image.c
+
+reduce_star.exe: reduce_star.o $(OBJ)
+	gcc -Wall -o reduce_star $(OBJ) reduce_star.o -lm
+reduce_star.o: reduce_star.c $(HEAD)
+	gcc -Wall -c reduce_star.c
+
+reduce_white.exe: reduce_white.o $(OBJ)
+	gcc -Wall -o reduce_white $(OBJ) reduce_white.o -lm
+reduce_white.o: reduce_white.c $(HEAD)
+	gcc -Wall -c reduce_white.c
+
+rotate_arbitrary.exe: rotate_arbitrary.o $(OBJ)
+	gcc -Wall -o rotate_arbitrary $(OBJ) rotate_arbitrary.o -lm
+rotate_arbitrary.o: rotate_arbitrary.c $(HEAD)
+	gcc -Wall -c rotate_arbitrary.c
+
+show_fits.exe: show_fits.o $(OBJ)
+	gcc -Wall -o show_fits $(OBJ) show_fits.o -lm
+show_fits.o: show_fits.c $(HEAD)
+	gcc -Wall -c show_fits.c
+
+show_flux.exe: show_flux.o $(OBJ)
+	gcc -Wall -o show_flux $(OBJ) show_flux.o -lm
+show_flux.o: show_flux.c $(HEAD)
+	gcc -Wall -c show_flux.c
+
+splice_echelle.exe: splice_echelle.o $(OBJ)
+	gcc -Wall -o splice_echelle $(OBJ) splice_echelle.o -lm
+splice_echelle.o: splice_echelle.c $(HEAD)
+	gcc -Wall -c splice_echelle.c
+
+thorium_lines.exe: thorium_lines.o $(OBJ)
+	gcc -Wall -o thorium_lines $(OBJ) thorium_lines.o -lm
+thorium_lines.o: thorium_lines.c $(HEAD)
+	gcc -Wall -c thorium_lines.c
+
+transform_echelle.exe: transform_echelle.o $(OBJ)
+	gcc -Wall -o transform_echelle $(OBJ) transform_echelle.o -lm
+transform_echelle.o: transform_echelle.c $(HEAD)
+	gcc -Wall -c transform_echelle.c
+
+quad_align.exe: quad_align.o $(OBJ)
+	gcc -Wall -o quad_align $(OBJ) quad_align.o -lm
+quad_align.o: quad_align.c $(HEAD)
+	gcc -Wall -c quad_align.c
+
+unpack_echelle.exe: unpack_echelle.o $(OBJ)
+	gcc -Wall -o unpack_echelle $(OBJ) unpack_echelle.o -lm
+unpack_echelle.o: unpack_echelle.c $(HEAD)
+	gcc -Wall -c unpack_echelle.c
+
+velocity_correction.exe: velocity_correction.o $(OBJ)
+	gcc -Wall -o velocity_correction $(OBJ) velocity_correction.o -lm
+velocity_correction.o: velocity_correction.c $(HEAD)
+	gcc -Wall -c velocity_correction.c
+
+vertical_offset.exe: vertical_offset.o $(OBJ)
+	gcc -Wall -o vertical_offset $(OBJ) vertical_offset.o -lm
+vertical_offset.o: vertical_offset.c $(HEAD)
+	gcc -Wall -c vertical_offset.c
+
+clean:
+	\rm -f *.exe *.o *~
