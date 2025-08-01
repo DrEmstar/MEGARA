@@ -3,6 +3,6 @@
        0                                    ! Lyman quasi-mol
        0       0       0       0       0
      -23      24      26                    ! line broadening (H,HeI,HeII)
-    3800.0   8000.0    10       0  1.d-3    0.1
+    4300.0   6700.0    10       0  1.d-3    0.1
       0
       2.0

@@ -28,9 +28,6 @@ for x=1:cnt
     disp(' ')
 end
 
-synthetic_spectra = struct('synthwave1',synthwave1, 'synthint1',synthint1);
 
-
-eval(['save(''synthspec_' objectname '.mat'',''synthetic_spectra'')'])
 
 

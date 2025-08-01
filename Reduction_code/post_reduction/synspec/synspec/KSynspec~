@@ -49,5 +49,5 @@ cp fort.86 $JOBID.86		# continuum specific intensities
 
 				# tidy up
 cp fort.99 f99
-rm fort.*
+#rm fort.*
 mv f99 fort.99
