@@ -1,3 +1,0 @@
-eval(['!./barycorr_HRSP ' starname ' ' expdate ' ' midtime])
-  27.441
-diary off
