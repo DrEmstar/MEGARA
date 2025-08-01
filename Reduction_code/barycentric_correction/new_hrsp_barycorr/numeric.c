@@ -91,31 +91,6 @@
 #define G2DLOC_BAD_YMAX      2332
 #define G2DLOC_BAD_MAX       2341
 
-#define CLEAN_GAUSSJ {\
-   free_ivector(ipiv);\
-   free_ivector(indxr);\
-   free_ivector(indxc);}
-
-#define CLEAN_MRQMIN {\
-   free_dmatrix(oneda);\
-   free_dvector(da);\
-   free_dvector(beta);\
-   free_dvector(atry);}
-
-#define CLEAN_NONLINFIT {\
-   free_dmatrix(covar);\
-   free_dmatrix(alpha);\
-   free_dvector(b);\
-   free_dvector(sigma);}
-
-#define CLEAN_CENTGAUSS1D {\
-   free_dvector(x);\
-   free_dvector(f);}
-
-#define CLEAN_CENTGAUSS2D {\
-   free_dmatrix(xy);\
-   free_dvector(f);}
-
 static float fswaptemp;
 #define  FSWAP(a,b) {fswaptemp=(a);(a)=(b);(b)=fswaptemp;}
 
@@ -140,19 +115,14 @@ static double dminarg1,dminarg2;
 
 static double **xypoint;
 
-static double *x_vec = NULL;
-static double *y_vec = NULL;
-static double *y2_vec = NULL;
-static int y_count = 0;
-
-double ran1(int32_t *idum)
+double ran1(long *idum)
 {
    int j;
-   int32_t k;
-   static int32_t iy=0L;
-   static int32_t iv[NTAB];
+   long k;
+   static long iy=0L;
+   static long iv[NTAB];
    double random;
-
+ 
    if (*idum<=0 || !iy)
    {
       if (-(*idum) < 1)
@@ -181,12 +151,12 @@ double ran1(int32_t *idum)
       return(random);
 }
 
-double gasdev(int32_t *idum)
+double gasdev(long *idum)
 {
    static int iset=0;
    static double gset;
    double fac,rsq,v1,v2;
-
+ 
    if (iset == 0)
    {
       do
@@ -347,7 +317,7 @@ void clear_dvector(double *a,int n)
 
 void copy_dvector(double *a,int n,double *b)
 {
-   memmove(&b[1],&a[1],n*sizeof(double));
+   memcpy(&b[1],&a[1],n*sizeof(double));
 }
 
 void dvector_difference(double *a,double *b,double *c,int n)
@@ -442,14 +412,6 @@ double dselect(int k,int n,double *arr)
    }
 }
 
-double get_median(double *a,int n)
-{
-  if ((n/2)*2 == n)
-    return((dselect(n/2,n,a) + dselect(n/2+1,n,a)) / 2.0);
-  else
-    return(dselect((n+1)/2,n,a));
-}
-
 void shift_fmatrix(float **imag,int nx,int ny,int dx,int dy)
 {
    float **buf;
@@ -476,15 +438,15 @@ void shift_fmatrix(float **imag,int nx,int ny,int dx,int dy)
 
    m = sizeof(float);
 
-   for (iy=1,ky=py;ky<=ny;iy++,ky++) memmove(&buf[ky][px],&imag[iy][1],ax*m);
-   for (iy=gy,ky=1;iy<=ny;iy++,ky++) memmove(&buf[ky][px],&imag[iy][1],ax*m);
+   for (iy=1,ky=py;ky<=ny;iy++,ky++) memcpy(&buf[ky][px],&imag[iy][1],ax*m);
+   for (iy=gy,ky=1;iy<=ny;iy++,ky++) memcpy(&buf[ky][px],&imag[iy][1],ax*m);
    if (sx > 0)
    {
-     for (iy=1,ky=py;ky<=ny;iy++,ky++) memmove(&buf[ky][1],&imag[iy][gx],sx*m);
-     for (iy=gy,ky=1;iy<=ny;iy++,ky++) memmove(&buf[ky][1],&imag[iy][gx],sx*m);
+      for (iy=1,ky=py;ky<=ny;iy++,ky++) memcpy(&buf[ky][1],&imag[iy][gx],sx*m);
+      for (iy=gy,ky=1;iy<=ny;iy++,ky++) memcpy(&buf[ky][1],&imag[iy][gx],sx*m);
    }
 
-   memmove(&imag[1][1],&buf[1][1],nx*ny*m);
+   memcpy(&imag[1][1],&buf[1][1],nx*ny*m);
 
    free_fmatrix(buf);
 }
@@ -525,18 +487,10 @@ void spline_value(double *xa,double *ya,double *y2a,int n,
    double h,a,b;
 
    h = xa[khi]-xa[klo];
-   if (h == 0.0) get_error("spline_value: Bad xa input!");
+   if (h == 0.0) get_error("splint: Bad xa input!");
    a = (xa[khi]-x)/h;
    b = (x-xa[klo])/h;
-   if (a>=0.0 && b>=0) /* Interpolation */
-   {
-     *y = a*ya[klo] + b*ya[khi]
-        + ((a*a*a-a)*y2a[klo]+(b*b*b-b)*y2a[khi])*(h*h)/6.0;
-   }
-   else /* Extrapolation (linear)*/
-   {
-     *y = ya[klo] + (ya[khi] - ya[klo]) * b;
-   }
+   *y = a*ya[klo]+b*ya[khi]+((a*a*a-a)*y2a[klo]+(b*b*b-b)*y2a[khi])*(h*h)/6.0;
 }
 
 int locate_node(double *x,int n,double u)
@@ -576,20 +530,13 @@ void splint(double *xa,double *ya,double *y2a,int n,double x,double *y)
    spline_value(xa,ya,y2a,n,k,k+1,x,y);
 }
 
-double f_norm(double t,double b,double h)
-{
-   return((b - t) / h);
-}
-
-double g_norm(double t,double a,double h)
-{
-   return((t - a) / h);
-}
-
 double splineint(double *x,double *y,double *y2,int n,int k,double u,double v)
 {
    double a,b,h,fu,fv,fu2,fv2,fu4,fv4,gu,gv,gu2,gv2,gu4,gv4;
    double fint,gint,fint3,gint3,s;
+
+   double f(double z) {return((b-z)/h);}
+   double g(double z) {return((z-a)/h);}
 
    a = x[k];
    b = x[k+1];
@@ -599,8 +546,8 @@ double splineint(double *x,double *y,double *y2,int n,int k,double u,double v)
    if (u < a) u = a;
    if (v > b) v = b;
 
-   fu = f_norm(u,b,h);
-   fv = f_norm(v,b,h);
+   fu = f(u);
+   fv = f(v);
 
    fu2 = fu*fu;
    fv2 = fv*fv;
@@ -608,8 +555,8 @@ double splineint(double *x,double *y,double *y2,int n,int k,double u,double v)
    fu4 = fu2*fu2;
    fv4 = fv2*fv2;
 
-   gu = g_norm(u,a,h);
-   gv = g_norm(v,a,h);
+   gu = g(u);
+   gv = g(v);
 
    gu2 = gu*gu;
    gv2 = gv*gv;
@@ -623,7 +570,7 @@ double splineint(double *x,double *y,double *y2,int n,int k,double u,double v)
    fint3 = (fu4-fv4)*h/4;
    gint3 = (gv4-gu4)*h/4;
 
-   s = fint*y[k] + gint*y[k+1] +
+   s = fint*y[k] + gint*y[k+1] + 
        ((fint3-fint)*y2[k] + (gint3-gint)*y2[k+1])*h*h/6;
 
    return(s);
@@ -660,19 +607,22 @@ void spline_derivative(double *x,double *y,double *y2,int n,
    int i,k;
    double a,b,h,ff,gg;
 
+   double f(double z) {return((b-z)/h);}
+   double g(double z) {return((z-a)/h);}
+
    for (i=1;i<=m;i++)
    {
       k =  locate_node(x,n,u[i]);
       a = x[k];
       b = x[k+1];
       h = b-a;
-      ff = DSQR(f_norm(u[i],b,h));
-      gg = DSQR(g_norm(u[i],a,h));
+      ff = DSQR(f(u[i]));
+      gg = DSQR(g(u[i]));
       v[i] = (y[k+1]-y[k])/h + ((3*gg-1)*y2[k+1]-(3*ff-1)*y2[k])*h/6;
    }
 }
 
-double golden(double ax,double bx,double cx,double (*func)(double),
+double golden(double ax,double bx,double cx,double (*f)(double),
               double tol,double *xmin)
 {
    double f1,f2,x0,x1,x2,x3;
@@ -689,19 +639,19 @@ double golden(double ax,double bx,double cx,double (*func)(double),
       x2 = bx;
       x1 = bx-C*(bx-ax);
    }
-   f1 = func(x1);
-   f2 = func(x2);
+   f1 = (*f)(x1);
+   f2 = (*f)(x2);
    while (fabs(x3-x0) > tol*(fabs(x1)+fabs(x2)))
    {
       if (f2 < f1)
       {
          SHFT3(x0,x1,x2,R*x1+C*x3);
-         SHFT2(f1,f2,func(x2));
+         SHFT2(f1,f2,(*f)(x2));
       }
       else
       {
          SHFT3(x3,x2,x1,R*x2+C*x0);
-         SHFT2(f2,f1,func(x1));
+         SHFT2(f2,f1,(*f)(x1));
       }
    }
    if (f1 < f2)
@@ -827,7 +777,7 @@ void svdcmp(double **a,int m,int n,double *w,double **v,int pmod)
       }
       anorm = DMAX(anorm,(fabs(w[i])+fabs(rv1[i])));
    }
-
+   
    for (i=n;i>=1;i--)
    {
       if (i < n)
@@ -1072,9 +1022,9 @@ double compute_polynomial(double *a,int n,double x)
 {
    double p;
    int i;
-
+ 
    for (i=n-1,p=a[n];i>=1;i--) p = p*x + a[i];
-
+ 
    return(p);
 }
 
@@ -1096,7 +1046,7 @@ void accumulate_coefficients(double *a,int ma,double *b,int mb,
                              double u,int axis)
 {
    int i,m;
-
+ 
    m = ma/mb;
    if (mb*m != ma) get_error("accumulate_coefficients: Bad degree!");
    switch(axis)
@@ -1114,9 +1064,9 @@ void accumulate_coefficients(double *a,int ma,double *b,int mb,
 int number_of_coefficients(int *deg,int naxis)
 {
    int axis,m;
-
+ 
    for (axis=m=1;axis<=naxis;axis++) m *= (deg[axis]+1);
-
+ 
    return(m);
 }
 
@@ -1217,7 +1167,7 @@ void regression_polynomial(double **x,int ndat,int naxis,double *y,int *sel,
    for (i=j=1;i<=ndat;i++)
    {
       if (!sel[i]) continue;
-      memmove(&xi[j][1],&x[i][1],xsize);
+      memcpy(&xi[j][1],&x[i][1],xsize);
       eta[j] = y[i];
       sig[j++] = 1;
    }
@@ -1247,6 +1197,7 @@ void regression_polynomial(double **x,int ndat,int naxis,double *y,int *sel,
    free_dmatrix(xi);
    free_dvector(eta);
    free_ivector(sig);
+
 }
 
 void best_regression_polynomial(double **x,int ndat,int naxis,double *y,
@@ -1356,6 +1307,9 @@ void best_regression_polynomial_1d(double *x,double *y,int ndat,
 {
    double dmax,level;
    int k,kmax;
+   int ma;
+
+   ma = deg + 1;
 
    do
    {
@@ -1377,6 +1331,13 @@ int gaussj(double **a, int n, double **b, int m)
    int *indxc,*indxr,*ipiv;
    int i,icol,irow,j,k,l,ll;
    double big,dum,pivinv;
+
+   void get_clean(void)
+   {
+      free_ivector(ipiv);
+      free_ivector(indxr);
+      free_ivector(indxc);
+   }
 
    indxc=ivector(n);
    indxr=ivector(n);
@@ -1401,7 +1362,7 @@ int gaussj(double **a, int n, double **b, int m)
                {
                   if (ipiv[k] > 1)
                   {
-                     CLEAN_GAUSSJ;
+                     get_clean();
                      return(GAUSSJ_SINGMAT_1);
                   }
                }
@@ -1418,7 +1379,7 @@ int gaussj(double **a, int n, double **b, int m)
       indxc[i]=icol;
       if (a[icol][icol] == 0.0)
       {
-         CLEAN_GAUSSJ;
+         get_clean();
          return(GAUSSJ_SINGMAT_2);
       }
       pivinv=1.0/a[icol][icol];
@@ -1440,7 +1401,7 @@ int gaussj(double **a, int n, double **b, int m)
       if (indxr[l] != indxc[l])
          for (k=1;k<=n;k++) DSWAP(a[k][indxr[l]],a[k][indxc[l]]);
 
-   CLEAN_GAUSSJ;
+   get_clean();
 
    return(0);
 }
@@ -1499,7 +1460,7 @@ void mrqcof(double *x, double *y, double *sigma, int ndata,
 }
 
 int mrqmin(double *x, double *y, double *sigma, int ndata,
-   double *a, int *ia, int ma,
+   double *a, int *ia, int ma, 
    double **covar, double **alpha, double *chisq,
    void (*funcs)(double, double *, double *, double *, int), double *alambda)
 {
@@ -1507,9 +1468,17 @@ int mrqmin(double *x, double *y, double *sigma, int ndata,
    static int mfit;
    static double ochisq,*atry,*beta,*da,**oneda;
 
+   void get_clean(void)
+   {
+      free_dmatrix(oneda);
+      free_dvector(da);
+      free_dvector(beta);
+      free_dvector(atry);
+   }
+
    if (alambda == NULL)
    {
-      CLEAN_MRQMIN;
+      get_clean();
       return(0);
    }
 
@@ -1536,7 +1505,7 @@ int mrqmin(double *x, double *y, double *sigma, int ndata,
    flag = gaussj(covar,mfit,oneda,1);
    if (flag != 0)
    {
-      CLEAN_MRQMIN;
+      get_clean();
       return(flag);
    }
 
@@ -1545,7 +1514,7 @@ int mrqmin(double *x, double *y, double *sigma, int ndata,
    if (*alambda == 0.0)
    {
       covsrt(covar,ma,ia,mfit);
-      CLEAN_MRQMIN;
+      get_clean();
       return(0);
    }
 
@@ -1580,6 +1549,14 @@ int nonlinfit(double *x,double *y,int ndata,double *a,int *ia,double *s,
    double alam;
    int done,i,flag;
 
+   void get_clean(void)
+   {
+      free_dmatrix(covar);
+      free_dmatrix(alpha);
+      free_dvector(b);
+      free_dvector(sigma);
+   }
+
    sigma=dvector(ndata);
    b=dvector(ma);
    alpha=dmatrix(ma,ma);
@@ -1593,7 +1570,7 @@ int nonlinfit(double *x,double *y,int ndata,double *a,int *ia,double *s,
       flag = mrqmin(x,y,sigma,ndata,a,ia,ma,covar,alpha,chisq,funcs,&alam);
       if (flag != 0)
       {
-         CLEAN_NONLINFIT;
+         get_clean();
          return(flag);
       }
       for (i=1,done=1;i<=ma;i++) if (fabs(a[i]-b[i]) > eps[i]) done=0;
@@ -1603,7 +1580,7 @@ int nonlinfit(double *x,double *y,int ndata,double *a,int *ia,double *s,
    if (!done)
    {
       mrqmin(x,y,sigma,ndata,a,ia,ma,covar,alpha,chisq,funcs,NULL);
-      CLEAN_NONLINFIT;
+      get_clean();
       return(NONLINFIT_NO_CONVERGENCE);
    }
 
@@ -1611,7 +1588,7 @@ int nonlinfit(double *x,double *y,int ndata,double *a,int *ia,double *s,
    flag = mrqmin(x,y,sigma,ndata,a,ia,ma,covar,alpha,chisq,funcs,&alam);
    if (flag != 0)
    {
-      CLEAN_NONLINFIT;
+      get_clean();
       return(flag+MRQMIN_FLAG_OFFSET);
    }
 
@@ -1619,7 +1596,7 @@ int nonlinfit(double *x,double *y,int ndata,double *a,int *ia,double *s,
 
    *rms = sqrt((*chisq)/(ndata-ma));
 
-   CLEAN_NONLINFIT;
+   get_clean();
 
    return(0);
 }
@@ -1628,7 +1605,7 @@ void fgauss(double x,double *a,double *f,double *dfda,int na)
 {
    int i;
    double fac,ex,arg;
-
+ 
    *f = a[1];
    dfda[1] = 1.0;
    for (i=2;i<na;i+=3)
@@ -1669,12 +1646,12 @@ void fgauss2d(double x,double *a,double *f,double *dfda,int na)
    }
 }
 
-void clear_gaussian(gaussian *gauss)
+void clear_gaussian(gaussian *g)
 {
-   memset(gauss,0,sizeof(gaussian));
+   memset(g,0,sizeof(gaussian));
 }
 
-void fit_gaussian_1d(double *x,double *f,int n,gaussian *gauss)
+void fit_gaussian_1d(double *x,double *f,int n,gaussian *g)
 {
    int i;
    double xref,xscale,fref,fscale,xfwhm_min,xfwhm_max;
@@ -1682,29 +1659,29 @@ void fit_gaussian_1d(double *x,double *f,int n,gaussian *gauss)
    int ia[5];
    double *xi,*eta;
 
-   xref = gauss->xcen;
-   xscale = gauss->xfwhm / FWHM_FACTOR;
-   fref = gauss->base;
-   fscale = gauss->icen;
+   xref = g->xcen;
+   xscale = g->xfwhm / FWHM_FACTOR;
+   fref = g->base;
+   fscale = g->icen;
 
-   xfwhm_min = gauss->xfwhm/FWHM_TOLLERANCE;
-   xfwhm_max = gauss->xfwhm*FWHM_TOLLERANCE;
+   xfwhm_min = g->xfwhm/FWHM_TOLLERANCE;
+   xfwhm_max = g->xfwhm*FWHM_TOLLERANCE;
 
-   clear_gaussian(gauss);
+   clear_gaussian(g);
 
    if (n < 5)
    {
-      gauss->status = G1DFIT_SMALL_NDAT;
+      g->status = G1DFIT_SMALL_NDAT;
       return;
    }
    if (xscale < GFIT_SCALE_MIN)
    {
-      gauss->status = G1DFIT_SMALL_XSCALE;
+      g->status = G1DFIT_SMALL_XSCALE;
       return;
    }
    if (fscale < GFIT_SCALE_MIN)
    {
-      gauss->status = G1DFIT_SMALL_FSCALE;
+      g->status = G1DFIT_SMALL_FSCALE;
       return;
    }
 
@@ -1724,50 +1701,55 @@ void fit_gaussian_1d(double *x,double *f,int n,gaussian *gauss)
 
    for (i=1;i<=4;i++) ia[i]=1,eps[i]=G1DFIT_EPS;
 
-   gauss->status = nonlinfit(xi,eta,n,a,ia,s,eps,4,G1DFIT_MAXPASS,
-                         &gauss->chisq,&gauss->rms,&gauss->niter,fgauss);
+   g->status = nonlinfit(xi,eta,n,a,ia,s,eps,4,G1DFIT_MAXPASS,
+                         &g->chisq,&g->rms,&g->niter,fgauss);
 
-   if (gauss->status != 0) clear_dvector(a,4);
+   if (g->status != 0) clear_dvector(a,4);
 
-   gauss->base = a[1] * fscale + fref;
-   gauss->icen = a[2] * fscale;
-   gauss->xcen = a[3] * xscale + xref;
-   gauss->xfwhm = a[4] * xscale * FWHM_FACTOR;
-   gauss->chisq *= fscale*fscale;
-   gauss->rms *= fscale;
+   g->base = a[1] * fscale + fref;
+   g->icen = a[2] * fscale;
+   g->xcen = a[3] * xscale + xref;
+   g->xfwhm = a[4] * xscale * FWHM_FACTOR;
+   g->chisq *= fscale*fscale;
+   g->rms *= fscale;
 
    free_dvector(xi);
    free_dvector(eta);
 
-   if (gauss->status == 0 && gauss->rms > GFIT_RMS_MAX*fscale)
-      gauss->status = G1DFIT_LARGE_RMS;
+   if (g->status == 0 && g->rms > GFIT_RMS_MAX*fscale)
+      g->status = G1DFIT_LARGE_RMS;
 
-   if (gauss->status == 0 && (gauss->xfwhm<xfwhm_min ||
-                              gauss->xfwhm>xfwhm_max))
-      gauss->status = G1DFIT_BAD_XFWHM;
+   if (g->status == 0 && (g->xfwhm<xfwhm_min || g->xfwhm>xfwhm_max))
+      g->status = G1DFIT_BAD_XFWHM;
 
-   if (gauss->status == 0 && fabs(gauss->xcen-xref)/gauss->xfwhm > 0.5)
-      gauss->status = G1DFIT_BAD_XCEN;
+   if (g->status == 0 && fabs(g->xcen-xref)/g->xfwhm > 0.5)
+      g->status = G1DFIT_BAD_XCEN;
 }
 
 void center_gaussian_1d(float *pix,int npix,double start,double step,
-                        int a,int b,double w,gaussian *gauss)
+                        int a,int b,double w,gaussian *g)
 {
    double *x,*f;
    double fmin,fmax;
    int i,k,imax,n;
 
-   clear_gaussian(gauss);
+   void get_clean(void)
+   {
+      free_dvector(x);
+      free_dvector(f);
+   }
+
+   clear_gaussian(g);
 
    if (b <= a)
    {
-      gauss->status = G1DCENT_BAD_XREGION;
+      g->status = G1DCENT_BAD_XREGION;
       return;
    }
 
    if (a < 1 || b > npix)
    {
-      gauss->status = G1DCENT_XREGION_OUT;
+      g->status = G1DCENT_XREGION_OUT;
       return;
    }
 
@@ -1775,7 +1757,7 @@ void center_gaussian_1d(float *pix,int npix,double start,double step,
 
    if (n < 5)
    {
-      gauss->status = G1DCENT_SMALL_NDAT;
+      g->status = G1DCENT_SMALL_NDAT;
       return;
    }
 
@@ -1796,39 +1778,39 @@ void center_gaussian_1d(float *pix,int npix,double start,double step,
 
    if (fmax == fmin)
    {
-      gauss->status = G1DCENT_ZERO_FRANGE;
-      CLEAN_CENTGAUSS1D;
+      g->status = G1DCENT_ZERO_FRANGE;
+      get_clean();
       return;
    }
 
-   gauss->base = fmin;
-   gauss->icen = fmax - fmin;
-   gauss->xcen = x[imax];
-   gauss->xfwhm = w;
+   g->base = fmin;
+   g->icen = fmax - fmin;
+   g->xcen = x[imax];
+   g->xfwhm = w;
 
-   if (x[n]-x[1] < gauss->xfwhm)
+   if (x[n]-x[1] < g->xfwhm)
    {
-      gauss->status = G1DCENT_BAD_XFWHM;
-      CLEAN_CENTGAUSS1D;
+      g->status = G1DCENT_BAD_XFWHM;
+      get_clean();
       return;
    }
 
-   fit_gaussian_1d(x,f,n,gauss);
+   fit_gaussian_1d(x,f,n,g);
 
-   CLEAN_CENTGAUSS1D;
+   get_clean();
 }
 
 void locate_gaussian_1d(float *pix,int npix,double start,double step,
-                        double a,double c,double b,double w,gaussian *gauss)
+                        double a,double c,double b,double w,gaussian *g)
 {
    int ka,kb,k,kmax;
    float maxpix;
 
-   clear_gaussian(gauss);
+   clear_gaussian(g);
 
    if (a >= c || b <= c)
    {
-      gauss->status = G1DLOC_BAD_XREGION;
+      g->status = G1DLOC_BAD_XREGION;
       return;
    }
 
@@ -1837,7 +1819,7 @@ void locate_gaussian_1d(float *pix,int npix,double start,double step,
 
    if (ka < 1 || kb > npix)
    {
-      gauss->status = G1DLOC_XREGION_OUT;
+      g->status = G1DLOC_XREGION_OUT;
       return;
    }
 
@@ -1846,7 +1828,7 @@ void locate_gaussian_1d(float *pix,int npix,double start,double step,
 
    if (kmax==ka || kmax==kb)
    {
-      gauss->status = G1DLOC_BAD_XMAX;
+      g->status = G1DLOC_BAD_XMAX;
       return;
    }
 
@@ -1855,7 +1837,7 @@ void locate_gaussian_1d(float *pix,int npix,double start,double step,
 
    if (ka < 1 || kb > npix)
    {
-      gauss->status = G1DLOC_XREGION_OUT;
+      g->status = G1DLOC_XREGION_OUT;
       return;
    }
 
@@ -1864,15 +1846,15 @@ void locate_gaussian_1d(float *pix,int npix,double start,double step,
       if (k == kmax) continue;
       if (pix[k-1] >= maxpix)
       {
-         gauss->status = G1DLOC_BAD_MAX;
+         g->status = G1DLOC_BAD_MAX;
          return;
       }
    }
 
-   center_gaussian_1d(pix,npix,start,step,ka,kb,w,gauss);
+   center_gaussian_1d(pix,npix,start,step,ka,kb,w,g);
 }
 
-void fit_gaussian_2d(double **xy,double *f,int n,gaussian *gauss)
+void fit_gaussian_2d(double **xy,double *f,int n,gaussian *g)
 {
    int i;
    double xref,xscale,yref,yscale,fref,fscale;
@@ -1881,38 +1863,38 @@ void fit_gaussian_2d(double **xy,double *f,int n,gaussian *gauss)
    int ia[8];
    double **xi,*eta,*u;
 
-   xref = gauss->xcen;
-   xscale = gauss->xfwhm / FWHM_FACTOR;
-   yref = gauss->ycen;
-   yscale = gauss->yfwhm / FWHM_FACTOR;
-   fref = gauss->base;
-   fscale = gauss->icen;
+   xref = g->xcen;
+   xscale = g->xfwhm / FWHM_FACTOR;
+   yref = g->ycen;
+   yscale = g->yfwhm / FWHM_FACTOR;
+   fref = g->base;
+   fscale = g->icen;
 
-   xfwhm_min = gauss->xfwhm/FWHM_TOLLERANCE;
-   xfwhm_max = gauss->xfwhm*FWHM_TOLLERANCE;
-   yfwhm_min = gauss->yfwhm/FWHM_TOLLERANCE;
-   yfwhm_max = gauss->yfwhm*FWHM_TOLLERANCE;
+   xfwhm_min = g->xfwhm/FWHM_TOLLERANCE;
+   xfwhm_max = g->xfwhm*FWHM_TOLLERANCE;
+   yfwhm_min = g->yfwhm/FWHM_TOLLERANCE;
+   yfwhm_max = g->yfwhm*FWHM_TOLLERANCE;
 
-   clear_gaussian(gauss);
+   clear_gaussian(g);
 
    if (n < 25)
    {
-      gauss->status = G2DFIT_SMALL_NDAT;
+      g->status = G2DFIT_SMALL_NDAT;
       return;
    }
    if (xscale < GFIT_SCALE_MIN)
    {
-      gauss->status = G2DFIT_SMALL_XSCALE;
+      g->status = G2DFIT_SMALL_XSCALE;
       return;
    }
    if (yscale < GFIT_SCALE_MIN)
    {
-      gauss->status = G2DFIT_SMALL_YSCALE;
+      g->status = G2DFIT_SMALL_YSCALE;
       return;
    }
    if (fscale < GFIT_SCALE_MIN)
    {
-      gauss->status = G2DFIT_SMALL_FSCALE;
+      g->status = G2DFIT_SMALL_FSCALE;
       return;
    }
 
@@ -1937,78 +1919,82 @@ void fit_gaussian_2d(double **xy,double *f,int n,gaussian *gauss)
    a[4] = 1.0;
    a[5] = 0.0;
    a[6] = 1.0;
-   a[7] = gauss->xyfactor;
+   a[7] = g->xyfactor;
 
    for (i=1;i<=7;i++) ia[i]=1,eps[i]=G2DFIT_EPS;
 
-   gauss->status = nonlinfit(u,eta,n,a,ia,s,eps,7,G2DFIT_MAXPASS,
-                         &gauss->chisq,&gauss->rms,&gauss->niter,fgauss2d);
+   g->status = nonlinfit(u,eta,n,a,ia,s,eps,7,G2DFIT_MAXPASS,
+                         &g->chisq,&g->rms,&g->niter,fgauss2d);
 
-   if (gauss->status != 0) clear_dvector(a,7);
+   if (g->status != 0) clear_dvector(a,7);
 
-   gauss->base = a[1] * fscale + fref;
-   gauss->icen = a[2] * fscale;
-   gauss->xcen = a[3] * xscale + xref;
-   gauss->xfwhm = a[4] * xscale * FWHM_FACTOR;
-   gauss->ycen = a[5] * yscale + yref;
-   gauss->yfwhm = a[6] * yscale * FWHM_FACTOR;
-   gauss->xyfactor = a[7];
-   gauss->chisq *= fscale*fscale;
-   gauss->rms *= fscale;
+   g->base = a[1] * fscale + fref;
+   g->icen = a[2] * fscale;
+   g->xcen = a[3] * xscale + xref;
+   g->xfwhm = a[4] * xscale * FWHM_FACTOR;
+   g->ycen = a[5] * yscale + yref;
+   g->yfwhm = a[6] * yscale * FWHM_FACTOR;
+   g->xyfactor = a[7];
+   g->chisq *= fscale*fscale;
+   g->rms *= fscale;
 
    free_dmatrix(xi);
    free_dvector(eta);
    free_dvector(u);
 
-   if (gauss->status == 0 && gauss->rms > GFIT_RMS_MAX*fscale)
-      gauss->status = G2DFIT_LARGE_RMS;
+   if (g->status == 0 && g->rms > GFIT_RMS_MAX*fscale)
+      g->status = G2DFIT_LARGE_RMS;
 
-   if (gauss->status == 0 && (gauss->xfwhm<xfwhm_min ||
-                              gauss->xfwhm>xfwhm_max))
-      gauss->status = G2DFIT_BAD_XFWHM;
-   if (gauss->status == 0 && (gauss->yfwhm<yfwhm_min ||
-                              gauss->yfwhm>yfwhm_max))
-      gauss->status = G2DFIT_BAD_YFWHM;
+   if (g->status == 0 && (g->xfwhm<xfwhm_min || g->xfwhm>xfwhm_max))
+      g->status = G2DFIT_BAD_XFWHM;
+   if (g->status == 0 && (g->yfwhm<yfwhm_min || g->yfwhm>yfwhm_max))
+      g->status = G2DFIT_BAD_YFWHM;
 
-   if (gauss->status == 0 && fabs(gauss->xcen-xref)/gauss->xfwhm > 0.5)
-      gauss->status = G2DFIT_BAD_XCEN;
-   if (gauss->status == 0 && fabs(gauss->ycen-yref)/gauss->yfwhm > 0.5)
-      gauss->status = G2DFIT_BAD_YCEN;
+   if (g->status == 0 && fabs(g->xcen-xref)/g->xfwhm > 0.5)
+      g->status = G2DFIT_BAD_XCEN;
+   if (g->status == 0 && fabs(g->ycen-yref)/g->yfwhm > 0.5)
+      g->status = G2DFIT_BAD_YCEN;
 }
 
 void center_gaussian_2d(float *pix,int npix1,int npix2,
                         double start1,double start2,double step1,double step2,
                         int a1,int a2,int b1,int b2,
-                        double wx,double wy,gaussian *gauss)
+                        double wx,double wy,gaussian *g)
 {
    double **xy,*f;
    double fmin,fmax;
    int i,k1,k2,imax,n1,n2,n;
    float *ptr,*src;
 
-   clear_gaussian(gauss);
+   void get_clean(void)
+   {
+      free_dmatrix(xy);
+      free_dvector(f);
+   }
+
+   clear_gaussian(g);
 
    if (b1 <= a1)
    {
-      gauss->status = G2DCENT_BAD_XREGION;
+      g->status = G2DCENT_BAD_XREGION;
       return;
    }
 
    if (b2 <= a2)
    {
-      gauss->status = G2DCENT_BAD_YREGION;
+      g->status = G2DCENT_BAD_YREGION;
       return;
    }
 
    if (a1 < 1 || b1 > npix1)
    {
-      gauss->status = G2DCENT_XREGION_OUT;
+      g->status = G2DCENT_XREGION_OUT;
       return;
    }
 
    if (a2 < 1 || b2 > npix2)
    {
-      gauss->status = G2DCENT_YREGION_OUT;
+      g->status = G2DCENT_YREGION_OUT;
       return;
    }
 
@@ -2017,13 +2003,13 @@ void center_gaussian_2d(float *pix,int npix1,int npix2,
 
    if (n1 < 5)
    {
-      gauss->status = G2DCENT_SMALL_NXDAT;
+      g->status = G2DCENT_SMALL_NXDAT;
       return;
    }
 
    if (n2 < 5)
    {
-      gauss->status = G2DCENT_SMALL_NYDAT;
+      g->status = G2DCENT_SMALL_NYDAT;
       return;
    }
 
@@ -2051,57 +2037,57 @@ void center_gaussian_2d(float *pix,int npix1,int npix2,
 
    if (fmax == fmin)
    {
-      gauss->status = G2DCENT_ZERO_FRANGE;
-      CLEAN_CENTGAUSS2D;
+      g->status = G2DCENT_ZERO_FRANGE;
+      get_clean();
       return;
    }
 
-   gauss->base = fmin;
-   gauss->icen = fmax - fmin;
-   gauss->xcen = xy[imax][1];
-   gauss->xfwhm = wx;
-   gauss->ycen = xy[imax][2];
-   gauss->yfwhm = wy;
-   gauss->xyfactor = 0.0;
+   g->base = fmin;
+   g->icen = fmax - fmin;
+   g->xcen = xy[imax][1];
+   g->xfwhm = wx;
+   g->ycen = xy[imax][2];
+   g->yfwhm = wy;
+   g->xyfactor = 0.0;
 
-   if (xy[1][n]-xy[1][1] < gauss->xfwhm)
+   if (xy[1][n]-xy[1][1] < g->xfwhm)
    {
-      gauss->status = G2DCENT_BAD_XFWHM;
-      CLEAN_CENTGAUSS2D;
+      g->status = G2DCENT_BAD_XFWHM;
+      get_clean();
       return;
    }
 
-   if (xy[2][n]-xy[2][1] < gauss->yfwhm)
+   if (xy[2][n]-xy[2][1] < g->yfwhm)
    {
-      gauss->status = G2DCENT_BAD_YFWHM;
-      CLEAN_CENTGAUSS2D;
+      g->status = G2DCENT_BAD_YFWHM;
+      get_clean();
       return;
    }
 
-   fit_gaussian_2d(xy,f,n,gauss);
+   fit_gaussian_2d(xy,f,n,g);
 
-   CLEAN_CENTGAUSS2D;
+   get_clean();
 }
 
 void locate_gaussian_2d(float *pix,int npix1,int npix2,
-                     double start1,double start2,double step1,double step2,
-                     double a1,double a2,double c1,double c2,
-                     double b1,double b2,double wx,double wy,gaussian *gauss)
+                        double start1,double start2,double step1,double step2,
+                        double a1,double a2,double c1,double c2,
+                        double b1,double b2,double wx,double wy,gaussian *g)
 {
    int ka1,ka2,kb1,kb2,kmax1,kmax2,k1,k2,ka,ks,k;
    float maxpix;
 
-   clear_gaussian(gauss);
+   clear_gaussian(g);
 
    if (a1 >= c1 || b1 <= c1)
    {
-      gauss->status = G2DLOC_BAD_XREGION;
+      g->status = G2DLOC_BAD_XREGION;
       return;
    }
 
    if (a2 >= c2 || b2 <= c2)
    {
-      gauss->status = G2DLOC_BAD_YREGION;
+      g->status = G2DLOC_BAD_YREGION;
       return;
    }
 
@@ -2112,13 +2098,13 @@ void locate_gaussian_2d(float *pix,int npix1,int npix2,
 
    if (ka1 < 1 || kb1 > npix1)
    {
-      gauss->status = G2DLOC_XREGION_OUT;
+      g->status = G2DLOC_XREGION_OUT;
       return;
    }
 
    if (ka2 < 1 || kb2 > npix2)
    {
-      gauss->status = G2DLOC_YREGION_OUT;
+      g->status = G2DLOC_YREGION_OUT;
       return;
    }
 
@@ -2134,13 +2120,13 @@ void locate_gaussian_2d(float *pix,int npix1,int npix2,
 
    if (kmax1==ka1 || kmax1==kb1)
    {
-      gauss->status = G2DLOC_BAD_XMAX;
+      g->status = G2DLOC_BAD_XMAX;
       return;
    }
 
    if (kmax2==ka2 || kmax2==kb2)
    {
-      gauss->status = G2DLOC_BAD_YMAX;
+      g->status = G2DLOC_BAD_YMAX;
       return;
    }
 
@@ -2151,13 +2137,13 @@ void locate_gaussian_2d(float *pix,int npix1,int npix2,
 
    if (ka1 < 1 || kb1 > npix1)
    {
-      gauss->status = G2DLOC_XREGION_OUT;
+      g->status = G2DLOC_XREGION_OUT;
       return;
    }
 
    if (ka2 < 1 || kb2 > npix2)
    {
-      gauss->status = G2DLOC_YREGION_OUT;
+      g->status = G2DLOC_YREGION_OUT;
       return;
    }
 
@@ -2169,14 +2155,14 @@ void locate_gaussian_2d(float *pix,int npix1,int npix2,
          if (k1 == kmax1 && k2 == kmax2) continue;
          if (pix[k-1] >= maxpix)
          {
-            gauss->status = G2DLOC_BAD_MAX;
+            g->status = G2DLOC_BAD_MAX;
             return;
          }
       }
    }
 
    center_gaussian_2d(pix,npix1,npix2,start1,start2,step1,step2,
-                      ka1,ka2,kb1,kb2,wx,wy,gauss);
+                      ka1,ka2,kb1,kb2,wx,wy,g);
 }
 
 int peak_ok(double *x,int n)
@@ -2190,53 +2176,34 @@ int peak_ok(double *x,int n)
    return(1);
 }
 
-void init_parab(double *y,int ny,int *imax,double *xparab,
-                double *yparab,int crad,int pmod)
+void init_parab(double *y,int n,int *imax,double *xparab,
+                double *yparab,int pmod)
 {
-   int i,j,n;
+   int i,j;
    double ymax;
-   double *u,*v,*fit,*del;
-   int *sel,nsel;
+   double u[6],v[6],fit[6],del[6];
+   int sel[6],nsel;
    double a[4],rms;
 
-   n = 2 * crad + 1;
+   for (i=1,*imax=1,ymax=y[1];i<=n;i++) if (y[i] > ymax) ymax=y[i],*imax=i;
 
-   for (i=1,*imax=1,ymax=y[1];i<=ny;i++) if (y[i] > ymax) ymax=y[i],*imax=i;
+   if (*imax < 32 || *imax > n-32)
+      get_error("CCF maximum close to image edges!");
 
-   if (*imax <= crad || *imax > ny-crad)
-      get_error("CCF maximum too close to the image edges!");
-
-   *xparab = 0.0;
-   *yparab = ymax;
-
-   if (crad < 1) return;
-
-   u = dvector(n);
-   v = dvector(n);
-   fit = dvector(n);
-   del = dvector(n);
-   sel = ivector(n);
-
-   for (i=-crad,j=1;i<=crad;i++,j++)
+   for (i=-2,j=1;i<=2;i++,j++)
    {
       u[j] = i;
       v[j] = y[*imax+i];
       sel[j] = 1;
    }
 
-   if (!peak_ok(v,n))
+   if (!peak_ok(v,5))
       get_error("The core of the CCF peak not well defined!");
 
-   regression_polynomial_1d(u,v,n,sel,2,a,&rms,&nsel,fit,del,pmod);
+   regression_polynomial_1d(u,v,5,sel,2,a,&rms,&nsel,fit,del,pmod);
 
    *xparab = -a[2]/(2*a[3]);
    *yparab = a[1] - a[2]*a[2]/(4*a[3]);
-
-   free_dvector(u);
-   free_dvector(v);
-   free_dvector(fit);
-   free_dvector(del);
-   free_ivector(sel);
 }
 
 void define_core_peak(int imax,double xparab,int rad,int *kg,int *ng,
@@ -2261,42 +2228,45 @@ void extract_core_peak(double *u,double *v,double *y,int imax,int kg,int ng)
       u[i] = j - imax;
       v[i] = y[j];
    }
+
+   if (!peak_ok(v,ng))
+      get_error("CCF peak not well defined!");
 }
 
-void init_gauss(gaussian *gauss,double *v,int ng,double xparab,double yparab)
+void init_gauss(gaussian *g,double *v,int ng,double xparab,double yparab)
 {
    int i,ka,kb;
    double half;
 
-   gauss->base = DMIN(v[1],v[ng]);
-   gauss->icen = yparab - gauss->base;
-   gauss->xcen = xparab;
+   g->base = DMIN(v[1],v[ng]);
+   g->icen = yparab - g->base;
+   g->xcen = xparab;
 
-   half = gauss->base + gauss->icen/2;
+   half = g->base + g->icen/2;
 
    for (i=1;i<=ng;i++) if (v[i] > half) break;
    ka = i;
    for (i=ka;i<=ng;i++) if (v[i] < half) break;
    kb = i;
 
-   gauss->xfwhm = (double)(kb-ka+1);
+   g->xfwhm = (double)(kb-ka+1);
 }
 
-double get_shift(gaussian *gauss,int imax,double x1,double step)
+double get_shift(gaussian *g,int imax,double x1,double step)
 {
-   gauss->xcen += (double)imax;
-   return(x1 + (gauss->xcen-1)*step);
+   g->xcen += (double)imax;
+   return(x1 + (g->xcen-1)*step);
 }
 
-double locate_gauss_maximum(double x1,double step,double *y,int n,int crad,
-                            int rad,int pmod,int *b1,int *b2,gaussian *gauss)
+double locate_gauss_maximum(double x1,double step,double *y,int n,
+                            int rad,int pmod,int *b1,int *b2,gaussian *g)
 {
    int imax;
    double *u,*v;
    double xparab,yparab;
    int kg,ng;
 
-   init_parab(y,n,&imax,&xparab,&yparab,crad,pmod);
+   init_parab(y,n,&imax,&xparab,&yparab,pmod);
 
    define_core_peak(imax,xparab,rad,&kg,&ng,b1,b2);
 
@@ -2305,20 +2275,20 @@ double locate_gauss_maximum(double x1,double step,double *y,int n,int crad,
 
    extract_core_peak(u,v,y,imax,kg,ng);
 
-   clear_gaussian(gauss);
+   clear_gaussian(g);
 
-   init_gauss(gauss,v,ng,xparab,yparab);
+   init_gauss(g,v,ng,xparab,yparab);
 
-   fit_gaussian_1d(u,v,ng,gauss);
+   fit_gaussian_1d(u,v,ng,g);
 
    free_dvector(u);
    free_dvector(v);
 
-   return(get_shift(gauss,imax,x1,step));
+   return(get_shift(g,imax,x1,step));
 }
 
-double locate_parab_maximum(double x1,double step,double *y,int n,int crad,
-                            int rad,int pmod,int *b1,int *b2,gaussian *gauss)
+double locate_parab_maximum(double x1,double step,double *y,int n,
+                            int rad,int pmod,int *b1,int *b2,gaussian *g)
 {
    int i,imax;
    double *u,*v,*fit,*del;
@@ -2327,8 +2297,8 @@ double locate_parab_maximum(double x1,double step,double *y,int n,int crad,
    double xparab,yparab;
    int kg,ng;
 
-   init_parab(y,n,&imax,&xparab,&yparab,crad,pmod);
-
+   init_parab(y,n,&imax,&xparab,&yparab,pmod);
+ 
    define_core_peak(imax,xparab,rad,&kg,&ng,b1,b2);
 
    u = dvector(ng);
@@ -2340,14 +2310,14 @@ double locate_parab_maximum(double x1,double step,double *y,int n,int crad,
    extract_core_peak(u,v,y,imax,kg,ng);
    for (i=1;i<=ng;i++) sel[i] = 1;
 
-   clear_gaussian(gauss);
+   clear_gaussian(g);
 
    regression_polynomial_1d(u,v,ng,sel,2,a,&rms,&nsel,fit,del,pmod);
 
-   gauss->icen = a[1] - a[2]*a[2]/(4*a[3]);
-   gauss->xcen = -a[2]/(2*a[3]);
-   gauss->rms = rms;
-   gauss->status = 0;
+   g->icen = a[1] - a[2]*a[2]/(4*a[3]);
+   g->xcen = -a[2]/(2*a[3]);
+   g->rms = rms;
+   g->status = 0;
 
    free_dvector(u);
    free_dvector(v);
@@ -2355,52 +2325,50 @@ double locate_parab_maximum(double x1,double step,double *y,int n,int crad,
    free_dvector(del);
    free_ivector(sel);
 
-   return(get_shift(gauss,imax,x1,step));
+   return(get_shift(g,imax,x1,step));
 }
 
-double inter_func(double u)
-{
-   double v;
-
-   splint(x_vec,y_vec,y2_vec,y_count,u,&v);
-   return(-v);
-}
-
-double locate_spline_maximum(double x1,double step,double *y,int n,int crad,
-                             double tol,int pmod,gaussian *gauss)
+double locate_spline_maximum(double x1,double step,double *y,int n,
+                             double tol,int pmod,gaussian *g)
 {
    int i,imax;
    double xparab,yparab;
+   double *x,*y2;
 
-   y_vec = y;
-   y_count = n;
+   double f(double u)
+   {
+      double v;
 
-   init_parab(y,n,&imax,&xparab,&yparab,crad,pmod);
+      splint(x,y,y2,n,u,&v);
+      return(-v);
+   }
 
-   x_vec = dvector(n);
-   y2_vec = dvector(n);
+   init_parab(y,n,&imax,&xparab,&yparab,pmod);
 
-   for (i=1;i<=n;i++) x_vec[i] = (double)(i-imax);
+   x = dvector(n);
+   y2 = dvector(n);
 
-   spline(x_vec,y,n,1e30,1e30,y2_vec);
+   for (i=1;i<=n;i++) x[i] = (double)(i-imax);
 
-   gauss->icen = -golden(-2,0,2,inter_func,tol,&gauss->xcen);
-   gauss->status = 0;
+   spline(x,y,n,1e30,1e30,y2);
 
-   free_dvector(y2_vec);
-   free_dvector(x_vec);
+   g->icen = -golden(-2,0,2,f,tol,&g->xcen);
+   g->status = 0;
 
-   return(get_shift(gauss,imax,x1,step));
+   free_dvector(y2);
+   free_dvector(x);
+
+   return(get_shift(g,imax,x1,step));
 }
 
-double locate_peak_maximum(double x1,double step,double *y,int n,int crad,
-                           int pmod,int *b1,int *b2,gaussian *gauss)
+double locate_peak_maximum(double x1,double step,double *y,int n,
+                           int pmod,int *b1,int *b2,gaussian *g)
 {
    int imax,i;
    double xparab,yparab;
    double a,b,c;
 
-   init_parab(y,n,&imax,&xparab,&yparab,crad,pmod);
+   init_parab(y,n,&imax,&xparab,&yparab,pmod);
 
    for (i=imax-2;i<=imax+2;i++)
       if (y[i]>=y[i-1] && y[i]>y[i+1]) break;
@@ -2414,31 +2382,16 @@ double locate_peak_maximum(double x1,double step,double *y,int n,int crad,
    b = (y[i+1]-y[i-1])/2;
    c = y[i];
 
-   gauss->xcen = -b/(2*a);
-   gauss->icen = c - b*b/(4*a);
-   gauss->status = 0;
-
-   return(get_shift(gauss,i,x1,step));
+   g->xcen = -b/(2*a);
+   g->icen = c - b*b/(4*a);
+   g->status = 0;
+   
+   return(get_shift(g,i,x1,step));
 }
 
-double locate_ccf_maximum
-   (double x1,double step,double *y,int n,gaussian *gauss)
+void four1(double *data,long nn,int isign)
 {
-   int i,imax;
-   double ymax;
-
-   for (i=imax=1,ymax=y[1];i<=n;i++) if (y[i] > ymax) ymax=y[i],imax=i;
-
-   gauss->xcen = x1 + (imax-1)*step;
-   gauss->icen = ymax;
-   gauss->status = 0;
-
-   return(get_shift(gauss,imax,x1,step));
-}
-
-void four1(double *data,int32_t nn,int isign)
-{
-   int32_t n,mmax,m,j,istep,i;
+   long n,mmax,m,j,istep,i;
    double wtemp,wr,wpr,wpi,wi,theta,tempr,tempi;
 
    n = nn<<1;
@@ -2486,9 +2439,9 @@ void four1(double *data,int32_t nn,int isign)
    }
 }
 
-void twofft(double *data1,double *data2,double *fft1,double *fft2,int32_t n)
+void twofft(double *data1,double *data2,double *fft1,double *fft2,long n)
 {
-   int32_t nn3,nn2,jj,j;
+   long nn3,nn2,jj,j;
    double rep,rem,aip,aim;
 
    nn3 = 1+(nn2=2+n+n);
@@ -2513,9 +2466,9 @@ void twofft(double *data1,double *data2,double *fft1,double *fft2,int32_t n)
    }
 }
 
-void realft(double *data,int32_t n,int isign)
+void realft(double *data,long n,int isign)
 {
-   int32_t i,i1,i2,i3,i4,np3;
+   long i,i1,i2,i3,i4,np3;
    double c1=0.5,c2,h1r,h1i,h2r,h2i;
    double wr,wi,wpr,wpi,wtemp,theta;
 
@@ -2557,9 +2510,9 @@ void realft(double *data,int32_t n,int isign)
    }
 }
 
-void convlv(double *data,int32_t n,double *respns,int32_t m,int isign,double *ans)
+void convlv(double *data,long n,double *respns,long m,int isign,double *ans)
 {
-   int32_t i,no2;
+   long i,no2;
    double dum,mag2,*fft;
 
    fft = dvector(n<<1);
@@ -2593,9 +2546,9 @@ void correl(double *data1,double *data2,int n,double *ans)
 {
    int nhalf,ndouble,i;
    double dum,*fft;
-
+ 
    if (!power_of_two(n)) get_error("correl: %d is not a power of two!",n);
-
+ 
    nhalf = n>>1;
    ndouble = n<<1;
 
@@ -2611,11 +2564,11 @@ void correl(double *data1,double *data2,int n,double *ans)
    free_dvector(fft);
 }
 
-void fourn(float *data,int32_t *nn,int ndim,int isign,int pmod)
+void fourn(float *data,long *nn,int ndim,int isign,int pmod)
 {
    int idim;
-   int32_t i1,i2,i3,i2rev,i3rev,ip1,ip2,ip3,ifp1,ifp2;
-   int32_t ibit,k1,k2,n,nprev,nrem,ntot;
+   long i1,i2,i3,i2rev,i3rev,ip1,ip2,ip3,ifp1,ifp2;
+   long ibit,k1,k2,n,nprev,nrem,ntot;
    float tempi,tempr;
    double theta,wi,wpi,wpr,wr,wtemp;
    int npass,pass,pold,pnew;
@@ -2624,10 +2577,10 @@ void fourn(float *data,int32_t *nn,int ndim,int isign,int pmod)
    if (pmod) setbuf(stderr,NULL);
 
    for (ntot=1,idim=1;idim<=ndim;idim++) ntot *= nn[idim];
+   nprev=1;
 
    if (pmod)
    {
-      nprev = 1;
       for (idim=ndim,npass=0;idim>=1;idim--)
       {
          n=nn[idim];
@@ -2644,16 +2597,11 @@ void fourn(float *data,int32_t *nn,int ndim,int isign,int pmod)
                   for (i2=i1;i2<=ip3;i2+=ifp2) npass++;
             ifp1=ifp2;
          }
-         nprev *= n;
       }
       percent = 100.0/(double)npass;
-      if (isign > 0)
-         fprintf(stderr,"Fast Fourier Transform (%d-D):   0%%",ndim);
-      else
-         fprintf(stderr,"Inverse Fourier Transform (%d-D):   0%%",ndim);
    }
 
-   nprev = 1;
+   if (pmod) fprintf(stderr,"Fast Fourier Transform (%d-D):   0%%",ndim);
    for (idim=ndim,pass=0,pold=-1;idim>=1;idim--)
    {
       n=nn[idim];
@@ -2678,10 +2626,10 @@ void fourn(float *data,int32_t *nn,int ndim,int isign,int pmod)
          }
          ibit=ip2>>1;
          while (ibit>=ip1 && i2rev>ibit)
-         {
+	 {
             i2rev -= ibit;
             ibit = ibit>>1;
-          }
+	 }
          i2rev += ibit;
       }
       ifp1=ip1;
@@ -2695,11 +2643,11 @@ void fourn(float *data,int32_t *nn,int ndim,int isign,int pmod)
          wr=1.0;
          wi=0.0;
          for (i3=1;i3<=ifp1;i3+=ip1)
-         {
+	 {
             for (i1=i3;i1<=i3+ip1-2;i1+=2)
-            {
+	    {
                for (i2=i1;i2<=ip3;i2+=ifp2)
-               {
+	       {
                   k1=i2,k2=i2+ifp1;
                   tempr=(float)wr*data[k2]-(float)wi*data[k2+1];
                   tempi=(float)wr*data[k2+1]+(float)wi*data[k2];
@@ -2714,11 +2662,11 @@ void fourn(float *data,int32_t *nn,int ndim,int isign,int pmod)
                      if (pnew > pold)
                         fprintf(stderr,"\b\b\b\b%3d%%",pnew),pold=pnew;
                   }
-               }
-            }
+	       }
+	    }
             wr=(wtemp=wr)*wpr-wi*wpi+wr;
             wi=wi*wpr+wtemp*wpi+wi;
-         }
+	 }
          ifp1=ifp2;
       }
       nprev *= n;
@@ -2728,7 +2676,7 @@ void fourn(float *data,int32_t *nn,int ndim,int isign,int pmod)
 
 void ccf2d(float *img,float *ref,int n1,int n2,float *ccf)
 {
-   int32_t nn[3];
+   long nn[3];
    float *cimg,*cref;
    float cimg_re;
    int i,re,im;
@@ -2762,62 +2710,9 @@ void ccf2d(float *img,float *ref,int n1,int n2,float *ccf)
    inform("Cross-correlation done.");
 }
 
-void linear_rebinning(double *g,int n,double xstart,double xstep,
-  double *h,int m,double ustart,double ustep,double (*func)(double))
-{
-  int i,j,ia,ib;
-  double ua,ub,xa,xb,ra,rb,s;
-
-  clear_dvector(h,m);
-
-  for (j=1;j<=m;j++)
-  {
-    ua = ustart + (j-1) * ustep;
-    ub = ua + ustep;
-    xa = (*func)(ua);
-    xb = func(ub);
-    ra = (xa - xstart) / xstep;
-    rb = (xb - xstart) / xstep;
-    if (rb <= ra) get_error("linear_rebinning: Argument out of order!");
-    ia = (int)ceil(ra);
-    ib = (int)ceil(rb);
-    if (ia < 1 || ib > n) continue;
-    if (ib == ia)
-    {
-      h[j] = (rb - ra) * g[ia];
-    }
-    else
-    {
-      s = (ia-ra) * g[ia] + (rb-ib+1) * g[ib];
-      for (i=ia+1;i<=ib-1;i++) s += g[i];
-      h[j] = s;
-    }
-  }
-}
-
-void rebin_spectrum(double *g,int n,double xstart,double xstep,
-  double *h,int m,double ustart,double ustep,double (*func)(double))
-{
-  double *c,*q;
-  int i,j;
-
-  c = dvector(n+1);
-  q = dvector(m+1);
-
-  for (i=1;i<=n;i++) c[i] = 1.0;
-
-  linear_rebinning(g,n,xstart,xstep,h,m,ustart,ustep,func);
-  linear_rebinning(c,n,xstart,xstep,q,m,ustart,ustep,func);
-
-  for (j=1;j<=m;j++) if (q[j] != 0.0) h[j] /= q[j];
-
-  free_dvector(q);
-  free_dvector(c);
-}
-
-void spline_rebinning(double *g,int n,double xstart,double xstep,
+void rebinning(double *g,int n,double xstart,double xstep,
                double *h,int m,double ustart,double ustep,
-               double (*func)(double))
+               functype func)
 {
    double *x,*g2,*g1,*f,*f2,*gc,*p;
    double c;
@@ -2859,7 +2754,7 @@ void spline_rebinning(double *g,int n,double xstart,double xstep,
 
 void rebin_continuum(double xstep,
                      double *h,int m,double ustart,double ustep,
-                     double (*func)(double))
+                     functype func)
 {
    double *p,f;
    int i;
@@ -2871,19 +2766,19 @@ void rebin_continuum(double xstep,
    for (i=1;i<=m+1;i++) p[i] = func(ustart+(i-1.5)*ustep);
    for (i=1;i<=m;i++) h[i] = (p[i+1]-p[i])*f;
 
-   free_dvector(p);
+  free_dvector(p);
 }
 
 void rebin_normal(double *g,int n,double xstart,double xstep,
                   double *h,int m,double ustart,double ustep,
-                  double (*func)(double))
+                  functype func)
 {
    double *s;
    int i;
 
    s = dvector(m);
 
-   spline_rebinning(g,n,xstart,xstep,h,m,ustart,ustep,func);
+   rebinning(g,n,xstart,xstep,h,m,ustart,ustep,func);
    rebin_continuum(xstep,s,m,ustart,ustep,func);
 
    for (i=1;i<=m;i++) h[i] /= s[i];
@@ -2947,4 +2842,38 @@ void statistics_double_array(double *a,int n,double *min,double *max,
    for (i=1,sum=0.0;i<=n;i++)
       sum += DSQR(a[i]-(*mean));
    *sig = sqrt(sum/(n-1));
+}
+
+void best_statistics_double_array(double *a,int n,double kappa,
+                                  double *min,double *max,
+                                  double *mean,double *sig,int *nsel)
+{
+   double *x,dmax,delta,limit;
+   int *sel;
+   int i,j,imax;
+
+   x = dvector(n);
+   sel = ivector(n);
+
+   for (i=1;i<=n;i++) sel[i] = 1;
+
+   do
+   {
+      for (i=j=1;i<=n;i++) if (sel[i]) x[j++] = a[i];
+      *nsel = j-1;
+      statistics_double_array(x,*nsel,min,max,mean,sig);
+      limit = kappa*(*sig);
+      dmax=0;
+      for (i=1;i<=n;i++)
+      {
+         if (!sel[i]) continue;
+         delta = fabs(a[i]-*mean);
+         if (delta > dmax) dmax=delta,imax=i;
+         if (dmax > limit) sel[i] = 0;
+      }
+   }
+   while (dmax > limit);
+
+   free_dvector(x);
+   free_ivector(sel);
 }

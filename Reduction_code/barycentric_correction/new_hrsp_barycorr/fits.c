@@ -19,12 +19,12 @@ void clear_fits_header(fits_head *head)
    strncpy(head->dat,"END",3);
    head->nrec = head->ncard = 1;
 }
-
+ 
 void clear_primary_header(fits_file *fits)
 {
    clear_fits_header(&fits->head);
 }
-
+ 
 void clear_extension_header(fits_file *fits)
 {
    clear_fits_header(&fits->extend);
@@ -35,21 +35,9 @@ void clear_extension_header(fits_file *fits)
 int fits_key_char_ok(char c)
 {
    if (upper_case_ok(c) || digit_ok(c) || c=='_' || c=='-')
-      return(-1);
+      return(1);
    else
       return(0);
-}
-
-int fits_keyword_name_ok(char *key)
-{
-  int i,n;
-
-  n = strlen(key);
-  if (n < 1 || n > MAX_FITS_KEYLEN) return(0);
-  if (!upper_case_ok(*key)) return(0);
-  for (i=0;i<n;i++)
-     if (!fits_key_char_ok(key[i])) return(0);
-  return(-1);
 }
 
 int extract_fits_keyname(char *s,fitskey_type key)
@@ -68,7 +56,7 @@ int extract_fits_keyname(char *s,fitskey_type key)
       s[MAX_FITS_KEYLEN+8] = 0;
       return(-1);
    }
-
+ 
    return(0);
 }
 
@@ -76,7 +64,7 @@ char *normalize_fits_keyname(fitskey_type key,fitskey_type normkey)
 {
    int k;
 
-   memmove(normkey,key,sizeof(fitskey_type));
+   memcpy(normkey,key,sizeof(fitskey_type));
    for (k=strlen(normkey);k<MAX_FITS_KEYLEN;k++) normkey[k] = ' ';
    normkey[MAX_FITS_KEYLEN] = 0;
    return(normkey);
@@ -102,21 +90,15 @@ int find_fits_card(fits_head *head,char *text)
    for (row=1,card=head->dat;
         !same_case_text(card,text) && row<=head->ncard;
         row++,card+=CARD_BYTES);
-
+ 
    if (row > head->ncard) row=0;
 
    return(row);
 }
 
-void extract_fits_card(fits_head *head,int seq,char *card)
-{
-  memmove(card,head->dat+(seq-1)*CARD_BYTES,CARD_BYTES);
-  card[CARD_BYTES] = 0;
-}
-
 int find_fits_comment(fits_head *head,char *com)
 {
-   char text[CARD_BYTES+1];
+   char text[81];
 
    if (strlen(com) > 71) get_error("find_fits_comment: Comment too long!");
    sprintf(text,"COMMENT  %s",com);
@@ -136,11 +118,11 @@ int find_fits_keyword(fits_head *head,fitskey_type key)
 int get_fits_keyword(fits_file *fits,fits_head *head,fitskey_type key)
 {
    int row;
-
+ 
    row = find_fits_keyword(head,key);
    if (row < 1)
       get_error("Keyword '%s' not found in '%s'!",key,fits->file.path);
-
+ 
    return(row);
 }
 
@@ -150,15 +132,16 @@ void read_keyword_value(fits_file *fits,fits_head *head,int row,
    char *card,*limit,*first,*last;
    fitskey_type key;
    int len;
-
+ 
    card = head->dat + (row-1)*CARD_BYTES;
    limit = card + CARD_BYTES;
    collect_keyname(fits,head,row,key);
-   memset(val,0,MAX_FITS_VALLEN+1);
 
    for (first=card+MAX_FITS_KEYLEN+2;first<limit;first++)
       if (*first != ' ') break;
-   if (first == limit || *first == '/') return;
+   if (first == limit || *first == '/')
+      get_error("Value not found for keyword '%s' in '%s'!",
+                key,fits->file.path);
 
    if (*first == '\x27')
    {
@@ -173,7 +156,7 @@ void read_keyword_value(fits_file *fits,fits_head *head,int row,
       if (last < limit) last--;
    }
    len = (int)(last - first) + 1;
-   memmove(val,first,len);
+   memcpy(val,first,len);
    val[len] = 0;
 }
 
@@ -193,7 +176,7 @@ void read_keyword_textual(fits_file *fits,fits_head *head,int row,
    if (len > maxlen)
       get_error("A character string too long for '%s' in '%s'!",
                  key,fits->file.path);
-   memmove(dest,val+1,len);
+   memcpy(dest,val+1,len);
    dest[len] = 0;
 }
 
@@ -203,16 +186,16 @@ double read_keyword_double(fits_file *fits,fits_head *head,int row)
    fitsval_type val;
    char *eptr;
    double a;
-
+ 
    collect_keyname(fits,head,row,key);
    read_keyword_value(fits,head,row,val);
    a = strtod(val,&eptr);
    if (eptr == val || *eptr != 0)
       get_error("A numerical value expected for '%s' in '%s'!",
-                key,fits->file.path);
+                 key,fits->file.path);
    return(a);
 }
-
+ 
 int read_keyword_float(fits_file *fits,fits_head *head,int row)
 {
    return((float)read_keyword_double(fits,head,row));
@@ -224,7 +207,7 @@ int read_keyword_integer(fits_file *fits,fits_head *head,int row)
    fitsval_type val;
    char *eptr;
    int a;
-
+ 
    collect_keyname(fits,head,row,key);
    read_keyword_value(fits,head,row,val);
    a = strtol(val,&eptr,10);
@@ -251,16 +234,16 @@ void get_keyword_textual(fits_file *fits,fits_head *head,char *key,
                          char *str,int maxlen)
 {
    int row;
-
+ 
    row = get_fits_keyword(fits,head,key);
    read_keyword_textual(fits,head,row,str,maxlen);
 }
-
+ 
 char get_keyword_logical(fits_file *fits,fits_head *head,char *key)
 {
    int row;
    char a;
-
+ 
    row = get_fits_keyword(fits,head,key);
    a = read_keyword_logical(fits,head,row);
 
@@ -271,38 +254,33 @@ int get_keyword_integer(fits_file *fits,fits_head *head,char *key)
 {
    int row;
    int a;
-
+ 
    row = get_fits_keyword(fits,head,key);
    a = read_keyword_integer(fits,head,row);
 
    return(a);
 }
-
+ 
 double get_keyword_double(fits_file *fits,fits_head *head,char *key)
 {
    int row;
    double a;
-
+ 
    row = get_fits_keyword(fits,head,key);
    a = read_keyword_double(fits,head,row);
 
    return(a);
 }
-
+ 
 float get_keyword_float(fits_file *fits,fits_head *head,char *key)
 {
    int row;
    float a;
-
+ 
    row = get_fits_keyword(fits,head,key);
    a = read_keyword_float(fits,head,row);
 
    return(a);
-}
-
-void get_keyword_filename(fits_file *fits,char *fname)
-{
-   get_keyword_textual(fits,&fits->head,"FILENAME",fname,MAX_FITS_VALLEN);
 }
 
 void check_keyword_logical(fits_file *fits,fits_head *head,char *key,char a)
@@ -310,23 +288,11 @@ void check_keyword_logical(fits_file *fits,fits_head *head,char *key,char a)
    if (get_keyword_logical(fits,head,key) != a)
       get_error("'%s = %c' expected in '%s'!",key,a,fits->file.path);
 }
-
+ 
 void check_keyword_integer(fits_file *fits,fits_head *head,char *key,int a)
 {
    if (get_keyword_integer(fits,head,key) != a)
       get_error("'%s = %d' expected in '%s'!",key,a,fits->file.path);
-}
-
-void ensure_not_original_file(fits_file *fits)
-{
-   fitsval_type filename;
-
-   get_keyword_filename(fits,filename);
-
-   if (strcasecmp(fits->file.name,filename) == 0)
-      get_error("Fits file '%s' seems to contain an original image!\n"
-                "Make a copy using a different file name before editing.",
-                fits->file.name);
 }
 
 void remove_fits_cards(fits_file *fits,fits_head *head,int first,int last)
@@ -334,19 +300,19 @@ void remove_fits_cards(fits_file *fits,fits_head *head,int first,int last)
    int seq,count;
    char *src,*dest;
    div_t q;
-
+ 
    if (last < first) get_error("remove_fits_cards: Bad card range!");
    if (first<2 || last>=head->ncard)
       get_error("remove_fits_cards: Card number out of range for '%s'!",
                  fits->file.path);
-
+ 
    seq = last + 1;
    count = head->ncard - seq + 1;
-
+ 
    src = head->dat + (seq-1)*CARD_BYTES;
    dest = head->dat + (first-1)*CARD_BYTES;
    memmove(dest,src,count*CARD_BYTES);
-
+ 
    head->ncard -= last-first+1;
    q = div(head->ncard,RECORD_CARDS);
    head->nrec = q.quot;
@@ -356,12 +322,12 @@ void remove_fits_cards(fits_file *fits,fits_head *head,int first,int last)
 void overwrite_existing_card(fits_head *head,int seq,char *text)
 {
    char *card;
-
+ 
    card = head->dat + (seq-1)*CARD_BYTES;
    memset(card,0x20,CARD_BYTES);
    strncpy(card,text,strlen(text));
 }
-
+ 
 void insert_new_card(fits_file *fits,fits_head *head,char *text)
 {
    if (head->ncard == HEAD_CARDS)
@@ -370,12 +336,12 @@ void insert_new_card(fits_file *fits,fits_head *head,char *text)
    overwrite_existing_card(head,head->ncard,"END");
    if (head->ncard > head->nrec*RECORD_CARDS) head->nrec++;
 }
-
+ 
 void write_fits_card(fits_file *fits,fits_head *head,char *text)
 {
    int seq;
    fitskey_type key;
-
+ 
    if (extract_fits_keyname(text,key) != 0)
       get_error("write_fits_card: FITS keyword name too long: '%s'",text);
    seq = find_fits_keyword(head,key);
@@ -392,7 +358,7 @@ void insert_blank_card(fits_file *fits,fits_head *head)
 
 void insert_comment_card(fits_file *fits,fits_head *head,char *com)
 {
-   char text[CARD_BYTES+1];
+   char text[81];
 
    sprintf(text,"COMMENT  %s",com);
    insert_new_card(fits,head,text);
@@ -400,11 +366,9 @@ void insert_comment_card(fits_file *fits,fits_head *head,char *com)
 
 void add_comment(char *text,char *com)
 {
-   if (com == NULL) return;
-   if (*com == 0) return;
-   if (strlen(com) > 47)
+   if (strlen(com) > 46)
       get_error("add_comment: FITS comment too long!\n   %s",com);
-   if (strlen(text) + strlen(com) > 77)
+   if (strlen(text) > 30)
       get_error("add_comment: No space for FITS comment!\n"
                 "   %s / %s",text,com);
    while (strlen(text) < 30) strcat(text," ");
@@ -415,28 +379,28 @@ void add_comment(char *text,char *com)
 void write_keyword_logical(fits_file *fits,fits_head *head,char *key,
                            char a,char *com)
 {
-   char text[CARD_BYTES+1];
-
+   char text[80];
+ 
    sprintf(text,"%-8s= %19s%c",key," ",a);
    add_comment(text,com);
    write_fits_card(fits,head,text);
 }
-
+ 
 void write_keyword_integer(fits_file *fits,fits_head *head,char *key,
                            int a,char *com)
 {
-   char text[CARD_BYTES+1];
-
+   char text[80];
+ 
    sprintf(text,"%-8s= %20d",key,a);
    add_comment(text,com);
    write_fits_card(fits,head,text);
 }
-
+ 
 void write_keyword_double(fits_file *fits,fits_head *head,char *key,
                           double a,char *com)
 {
-   char text[CARD_BYTES+1];
-
+   char text[80];
+ 
    sprintf(text,"%-8s= %20.13e",key,a);
    add_comment(text,com);
    write_fits_card(fits,head,text);
@@ -445,8 +409,8 @@ void write_keyword_double(fits_file *fits,fits_head *head,char *key,
 void write_keyword_float(fits_file *fits,fits_head *head,char *key,
                          float a,char *com)
 {
-   char text[CARD_BYTES+1];
-
+   char text[80];
+ 
    sprintf(text,"%-8s= %20.7e",key,a);
    add_comment(text,com);
    write_fits_card(fits,head,text);
@@ -455,62 +419,24 @@ void write_keyword_float(fits_file *fits,fits_head *head,char *key,
 void write_keyword_textual(fits_file *fits,fits_head *head,char *key,
                            char *a,char *com)
 {
-   char text[CARD_BYTES+1];
-
+   char text[80];
+ 
    sprintf(text,"%-8s= '%s'",key,a);
    add_comment(text,com);
    write_fits_card(fits,head,text);
-}
-
-void copy_fits_keyword
-  (fits_head *src,char *key,fits_file *fits,fits_head *head)
-{
-  int row;
-  char card[81];
-
-  row = find_fits_keyword(src,key);
-  if (row < 1) return;
-  extract_fits_card(src,row,card);
-  write_fits_card(fits,head,card);
-}
-
-void replace_value_field(fits_head *head,int seq,char *newval)
-{
-  char *card;
-
-  card = head->dat + (seq - 1) * CARD_BYTES;
-  memset(card+9,0x20,22);
-  memmove(card+30-strlen(newval),newval,strlen(newval));
-}
-
-void comment_out_fits_card(fits_head *head,int seq)
-{
-  char *card;
-
-  card = head->dat + (seq - 1) * CARD_BYTES;
-  memset(card,0x20,10);
-  memmove(card,"COMMENT",7);
-}
-
-void ensure_comment_card(fits_file *fits,fits_head *head,char *text)
-{
-  int seq;
-
-  seq = find_fits_comment(head,text);
-  if (seq < 1) insert_comment_card(fits,head,text);
 }
 
 /* ------------------------- Regression Blocks ------------------------- */
 
 int find_regression_block(fits_head *head,char *key)
 {
-   char text[CARD_BYTES+1];
-
+   char text[80];
+ 
    sprintf(text,"HISTORY   REGRESSION %s START",key);
-
+ 
    return(find_fits_card(head,text));
 }
-
+ 
 int get_regression_block(fits_file *fits,fits_head *head,char *key)
 {
    int row;
@@ -525,8 +451,8 @@ int get_regression_block(fits_file *fits,fits_head *head,char *key)
 void remove_regression_block(fits_file *fits,fits_head *head,char *key)
 {
    int first,last;
-   char *card,text[CARD_BYTES+1];
-
+   char *card,text[80];
+ 
    first = find_regression_block(head,key);
    if (first < 1) return;
    sprintf(text,"HISTORY   REGRESSION %s END",key);
@@ -541,31 +467,31 @@ void remove_regression_block(fits_file *fits,fits_head *head,char *key)
 
 void insert_integer_value(fits_file *fits,fits_head *head,char *var,int val)
 {
-   char text[CARD_BYTES+1];
-
+   char text[81];
+ 
    sprintf(text,"HISTORY   %s %d",var,val);
    insert_new_card(fits,head,text);
 }
-
+ 
 void insert_double_value(fits_file *fits,fits_head *head,char *var,double val)
 {
-   char text[CARD_BYTES+1];
-
+   char text[81];
+ 
    sprintf(text,"HISTORY   %s %22.15e",var,val);
    insert_new_card(fits,head,text);
 }
-
+ 
 void insert_integer_list(fits_file *fits,fits_head *head,char *var,
                          int *x,int n)
 {
    int i;
-   char text[CARD_BYTES+1],val[16];
-
+   char text[81],val[16];
+ 
    sprintf(text,"HISTORY   %s",var);
    for (i=0;i<n;i++)
    {
       sprintf(val," %d",x[i]);
-      if (strlen(text)+strlen(val) > CARD_BYTES) get_error("FITS card full!");
+      if (strlen(text)+strlen(val) > 80) get_error("FITS card full!");
       strcat(text,val);
    }
    insert_new_card(fits,head,text);
@@ -573,10 +499,10 @@ void insert_integer_list(fits_file *fits,fits_head *head,char *var,
 
 int find_fits_array(fits_head *head,char *var)
 {
-   char text[CARD_BYTES+1];
-
+   char text[81];
+ 
    sprintf(text,"HISTORY   ARRAY %s",var);
-
+ 
    return(find_fits_card(head,text));
 }
 
@@ -585,7 +511,7 @@ void remove_fits_array(fits_file *fits,fits_head *head,char *var)
    int n,count,first,last;
    div_t q;
    char *card,type;
-
+ 
    first = find_fits_array(head,var);
    if (first < 1) return;
    card = head->dat + (first-1)*CARD_BYTES;
@@ -601,16 +527,16 @@ void remove_fits_array(fits_file *fits,fits_head *head,char *var)
    q = div(n,count);
    last = first + q.quot;
    if (q.rem > 0) last++;
-
+ 
    remove_fits_cards(fits,head,first,last);
 }
 
 void insert_double_array(fits_file *fits,fits_head *head,char *var,
                          double *x,int n)
 {
-   char text[CARD_BYTES+1],val[32];
+   char text[81],val[32];
    int i,k;
-
+ 
    sprintf(text,"HISTORY   ARRAY %s %d D",var,n);
    for (i=0,k=3;i<n;i++,k++)
    {
@@ -636,12 +562,12 @@ void write_double_array(fits_file *fits,fits_head *head,char *var,
 void write_regression_block(fits_file *fits,fits_head *head,char *key,
                             regre_block *reg)
 {
-   char text[CARD_BYTES+1];
-
+   char text[81];
+ 
    remove_regression_block(fits,head,key);
    sprintf(text,"HISTORY   REGRESSION %s START",key);
    insert_new_card(fits,head,text);
-
+ 
    insert_integer_value(fits,head,"NDIM",reg->ndim);
    insert_integer_value(fits,head,"YCOL",reg->ycol);
    insert_integer_list(fits,head,"XCOL",&reg->xcol[1],reg->ndim);
@@ -652,9 +578,9 @@ void write_regression_block(fits_file *fits,fits_head *head,char *key,
    insert_integer_value(fits,head,"NSEL",reg->nsel);
    insert_double_value(fits,head,"RMS",reg->rms);
    insert_double_value(fits,head,"KAPPA",reg->kappa);
-
+ 
    insert_double_array(fits,head,"COEFF",&reg->a[1],reg->ma);
-
+ 
    sprintf(text,"HISTORY   REGRESSION %s END",key);
    insert_new_card(fits,head,text);
 }
@@ -769,20 +695,6 @@ void extract_double_array(fits_file *fits,fits_head *head,char *key,
    }
 }
 
-int get_array_dimension(fits_file *fits,fits_head *head,char *var)
-{
-   int row,dim;
-   char *card,type;
-
-   row = find_fits_array(head,var);
-   if (row < 1)
-      get_error("Array '%s' not found in '%s'!",var,fits->file.path);
-   card = head->dat + (row-1)*CARD_BYTES;
-
-   sscanf(card+16+strlen(var),"%d %c",&dim,&type);
-   return(dim);
-}
-
 void get_double_array(fits_file *fits,fits_head *head,char *var,
                       double *a,int n)
 {
@@ -847,11 +759,11 @@ void read_regression_block(fits_file *fits,fits_head *head,char *key,
 }
 
 /* ---------------------------- Binary data ---------------------------- */
-
+ 
 void set_totbinrec(fits_file *fits,int size)
 {
    div_t q;
-
+ 
    q = div(size,RECORD_BYTES);
    fits->totbinrec = q.quot;
    if (q.rem != 0) fits->totbinrec++;
@@ -869,98 +781,55 @@ void set_tbl_totbinrec(fits_file *fits)
 
 void allocate_whole_binary(fits_file *fits)
 {
-   fits->bin = (byte *)get_space(fits->totbinrec*RECORD_BYTES);
+   fits->bin = (unsigned char *)get_space(fits->totbinrec*RECORD_BYTES);
    memset(fits->bin,0,fits->totbinrec*RECORD_BYTES);
    fits->pix = (float *)fits->bin;
 }
-
+ 
 void free_binary_data(fits_file *fits)
 {
-   get_free((void *)fits->bin);
+   get_free(fits->bin);
    fits->bin = NULL;
    fits->pix = NULL;
 }
 
-double read_pixel_double(byte *bptr,int bitpix)
-{
-   double val;
-
-   switch(bitpix)
-   {
-      case   8: val = (double)*bptr;
-                break;
-      case  16: val = (double)*(short *)bptr;
-                break;
-      case  32: val = (double)*(int32_t *)bptr;
-                break;
-      case -32: val = (double)*(float *)bptr;
-                break;
-      case -64: val = *(double *)bptr;
-                break;
-      default:  get_error("read_pixel_double: Invalid BITPIX = %d!",bitpix);
-   }
-
-   return(val);
-}
-
-void write_pixel_double(byte *bptr,int bitpix,double val)
-{
-   switch(bitpix)
-   {
-      case   8: *bptr = (char)val;
-                break;
-      case  16: *(short *)bptr = (short)val;
-                break;
-      case  32: *(int32_t *)bptr = (int32_t)val;
-                break;
-      case -32: *(float *)bptr = (float)val;
-                break;
-      case -64: *(double *)bptr = val;
-                break;
-   }
-}
-
 float collect_pixel_value(fits_file *fits,int x,int y)
 {
-   if (x>=1 && x<=fits->npix[1] && y>=1 && y<=fits->npix[2])
-      return(fits->pix[(y-1)*fits->npix[1]+x-1]);
-   else
-      return(0.0);
+   return(fits->pix[(y-1)*fits->npix[1]+x-1]);
 }
 
 void collect_pixel_row(fits_file *fits,int row,double *val)
 {
    float *pix;
    int col;
-
+ 
    if (row<1 || row>fits->npix[2])
       get_error("collect_pixel_row: Bad row number %d!",row);
-
+ 
    pix = fits->pix + (row - 1)*fits->npix[1];
    for (col=1;col<=fits->npix[1];col++,val++,pix++) *val = (double)(*pix);
 }
 
 void deposit_pixel_value(fits_file *fits,int x,int y,float val)
 {
-   if (x>=1 && x<=fits->npix[1] && y>=1 && y<=fits->npix[2])
-      fits->pix[(y-1)*fits->npix[1]+x-1] = val;
+   fits->pix[(y-1)*fits->npix[1]+x-1] = val;
 }
 
 void deposit_pixel_row(fits_file *fits,int row,double *val)
 {
    float *pix;
    int col;
-
+ 
    if (row<1 || row>fits->npix[2])
       get_error("deposit_pixel_row: Bad row number %d!",row);
-
+ 
    pix = fits->pix + (row - 1)*fits->npix[1];
    for (col=1;col<=fits->npix[1];col++,val++,pix++) *pix = (float)(*val);
 }
 
 void invert_image_pixels(fits_file *fits)
 {
-   unsigned char *ptr,*src,*dest,t;
+   char *ptr,*src,*dest,t;
    int pix;
 
    for (pix=1,ptr=fits->bin;pix<=fits->totpix;pix++,ptr+=fits->pixsize)
@@ -970,89 +839,11 @@ void invert_image_pixels(fits_file *fits)
    }
 }
 
-void copy_pixel_rows
-   (fits_file *xfits,int xrow,fits_file *yfits,int yrow,int nrows)
-{
-   unsigned char *xptr,*yptr;
-   int nbytes;
-
-   if (nrows < 1) return;
-
-   check_image_2d(xfits);
-   check_image_2d(yfits);
-
-   if (xfits->npix[1] != yfits->npix[1])
-      get_error("copy_pixel_rows: NAXIS1 values must be the same!");
-   if (xfits->bitpix != yfits->bitpix)
-      get_error("copy_pixel_rows: BITPIX values must be the same!");
-   if (xfits->bscale != yfits->bscale)
-      get_error("copy_pixel_rows: BSCALE values must be the same!");
-   if (xfits->bzero != yfits->bzero)
-      get_error("copy_pixel_rows: BZERO values must be the same!");
-
-   if (xrow < 1 || xrow > xfits->npix[2])
-      get_error("Input row number out of range!");
-   if (yrow < 1 || yrow > yfits->npix[2])
-      get_error("Output row number out of range!");
-
-   if (xrow + nrows - 1 > xfits->npix[2])
-      get_error("No more input rows!");
-   if (yrow + nrows - 1 > yfits->npix[2])
-      get_error("No more output rows!");
-
-   xptr = xfits->bin + (xrow - 1) * xfits->rowsize;
-   yptr = yfits->bin + (yrow - 1) * yfits->rowsize;
-   nbytes = nrows * xfits->rowsize;
-   memmove(yptr,xptr,nbytes);
-}
-
-void copy_pixel_cols
-   (fits_file *xfits,int xcol,fits_file *yfits,int ycol,int ncols)
-{
-   unsigned char *xptr,*yptr;
-   int nbytes;
-   int row;
-
-   if (ncols < 1) return;
-
-   check_image_2d(xfits);
-   check_image_2d(yfits);
-
-   if (xfits->npix[2] != yfits->npix[2])
-      get_error("copy_pixel_cols: NAXIS2 values must be the same!");
-   if (xfits->bitpix != yfits->bitpix)
-      get_error("copy_pixel_cols: BITPIX values must be the same!");
-   if (xfits->bscale != yfits->bscale)
-      get_error("copy_pixel_cols: BSCALE values must be the same!");
-   if (xfits->bzero != yfits->bzero)
-      get_error("copy_pixel_cols: BZERO values must be the same!");
-
-   if (xcol < 1 || xcol > xfits->npix[1])
-      get_error("Input column number out of range!");
-   if (ycol < 1 || ycol > yfits->npix[1])
-      get_error("Output column number out of range!");
-
-   if (xcol + ncols - 1 > xfits->npix[1])
-      get_error("No more input columns!");
-   if (ycol + ncols - 1 > yfits->npix[1])
-      get_error("No more output columns!");
-
-   xptr = xfits->bin + (xcol - 1) * xfits->pixsize;
-   yptr = yfits->bin + (ycol - 1) * yfits->pixsize;
-   nbytes = ncols * xfits->pixsize;
-   for (row=1;row<=xfits->npix[2];row++)
-   {
-      memmove(yptr,xptr,nbytes);
-      xptr += xfits->rowsize;
-      yptr += yfits->rowsize;
-   }
-}
-
 void get_raw_fits_table_data(fits_file *fits)
 {
-   unsigned char *bintbl;
+   char *bintbl;
    int col,row;
-   unsigned char *coloffset,*colstart,*src,*dest;
+   char *coloffset,*colstart,*src,*dest;
 
    bintbl = fits->bin;
    allocate_whole_binary(fits);
@@ -1065,7 +856,7 @@ void get_raw_fits_table_data(fits_file *fits)
       {
          if (fits->coltype[col] == 'C')
          {
-            memmove(colstart,src,fits->colsize[col]);
+            memcpy(colstart,src,fits->colsize[col]);
             src += fits->colsize[col];
          }
          else
@@ -1081,7 +872,7 @@ void get_raw_fits_table_data(fits_file *fits)
 
 void get_normal_table_data(fits_file *fits)
 {
-   unsigned char *rawtbl,*src,*dest,*coloffset,*colstart;
+   char *rawtbl,*src,*dest,*coloffset,*colstart;
    int row,col;
 
    rawtbl = fits->bin;
@@ -1095,7 +886,7 @@ void get_normal_table_data(fits_file *fits)
       {
          if (fits->coltype[col] == 'C')
          {
-            memmove(dest,colstart,fits->colsize[col]);
+            memcpy(dest,colstart,fits->colsize[col]);
             dest += fits->colsize[col];
          }
          else
@@ -1114,27 +905,20 @@ void get_normal_table_data(fits_file *fits)
 void vset_fits_name(fits_file *fits,char *name,va_list ap)
 {
    file_type f;
-   int fit_found;
 
    vset_file_name(&f,name,ap);
-   fit_found = 0;
-   if (strlen(f.path) > 4)
-      fit_found = (strcasecmp(f.path+strlen(f.path)-4,".FIT") == 0);
-   if (fit_found)
-      set_file_name(&fits->file,f.path);
-   else
-      set_file_name(&fits->file,"%s.fit",f.path);
+   set_file_name(&fits->file,"%s.fit",f.path);
 }
 
 void set_fits_name(fits_file *fits,char *name, ...)
 {
    va_list ap;
-
+ 
    va_start(ap,name);
    vset_fits_name(fits,name,ap);
    va_end(ap);
 }
-
+ 
 void open_fits_file(fits_file *fits)
 {
    get_fopen(&fits->file,"r");
@@ -1150,16 +934,16 @@ void seek_fits_file(fits_file *fits,int offset,int whence)
    get_fseek(&fits->file,offset,whence);
 }
 
-void read_fits_file(fits_file *fits,int size,int count,byte *buf)
+void read_fits_file(fits_file *fits,int size,int count,char *buf)
 {
-  get_fread(buf,size,count,&fits->file);
+   get_fread(buf,size,count,&fits->file);
 }
-
-void write_fits_file(fits_file *fits,int size,int count,byte *buf)
+ 
+void write_fits_file(fits_file *fits,int size,int count,char *buf)
 {
-  get_fwrite(buf,size,count,&fits->file);
+   get_fwrite(buf,size,count,&fits->file);
 }
-
+ 
 void close_fits_file(fits_file *fits)
 {
    get_fclose(&fits->file);
@@ -1173,11 +957,11 @@ void load_fits_header(fits_file *fits,fits_head *head,char *signature)
    char *headstop,*recstop;
    char *endcard;
 
-   read_fits_file(fits,1,CARD_BYTES,(byte *)head->dat);
+   read_fits_file(fits,1,CARD_BYTES,head->dat);
    if (!same_text(head->dat,signature))
       get_error("'%s' expected in '%s'!",signature,fits->file.path);
    seek_fits_file(fits,-CARD_BYTES,SEEK_CUR);
-
+ 
    memset(head->dat,0x20,HEAD_BYTES);
    endcard = NULL;
    headstop = head->dat + HEAD_BYTES;
@@ -1185,9 +969,9 @@ void load_fits_header(fits_file *fits,fits_head *head,char *signature)
    for (record=head->dat;record<headstop && endcard==NULL;
         record+=RECORD_BYTES)
    {
-      read_fits_file(fits,1,RECORD_BYTES,(byte *)record);
-      if (!extended_ascii_string_ok((unsigned char *)record,RECORD_BYTES))
-        get_error("An unexpected character found in '%s'!",fits->file.path);
+      read_fits_file(fits,1,RECORD_BYTES,record);
+      if (!ascii_string_ok(record,RECORD_BYTES))
+        get_error("ASCII record expected in '%s'!",fits->file.path);
       head->nrec++;
       recstop = record + RECORD_BYTES;
       for (card=record;card<recstop && endcard==NULL;card+=CARD_BYTES)
@@ -1202,7 +986,7 @@ void load_primary_header(fits_file *fits)
 {
    load_fits_header(fits,&fits->head,primary);
 }
-
+ 
 void load_extension_header(fits_file *fits)
 {
    load_fits_header(fits,&fits->extend,bintable);
@@ -1210,14 +994,12 @@ void load_extension_header(fits_file *fits)
 
 void save_primary_header(fits_file *fits)
 {
-   write_fits_file
-      (fits,RECORD_BYTES,fits->head.nrec,(byte *)fits->head.dat);
+   write_fits_file(fits,RECORD_BYTES,fits->head.nrec,fits->head.dat);
 }
 
 void save_extension_header(fits_file *fits)
 {
-   write_fits_file
-      (fits,RECORD_BYTES,fits->extend.nrec,(byte *)fits->extend.dat);
+   write_fits_file(fits,RECORD_BYTES,fits->extend.nrec,fits->extend.dat);
 }
 
 void load_whole_binary(fits_file *fits)
@@ -1264,15 +1046,15 @@ void load_image_header(fits_file *fits)
    fits->bitpix = get_keyword_integer(fits,&fits->head,"BITPIX");
    if (fits->bitpix!=8 && fits->bitpix!=16 && fits->bitpix!=32 &&
        fits->bitpix!=-32 && fits->bitpix!=-64)
-      get_error("Invalid keyword BITPIX = %d in '%s'!",
+      get_error("Bad value for BITPIX (%d) in '%s'!",
                  fits->bitpix,fits->file.path);
    fits->pixsize = abs(fits->bitpix)/8;
-
+ 
    fits->naxis = get_keyword_integer(fits,&fits->head,"NAXIS");
-   if (fits->naxis < 1 || fits->naxis > MAXNAXIS)
-      get_error("Invalid keyword NAXIS = %d in '%s'!",
+   if (fits->naxis!=1 && fits->naxis!=2)
+      get_error("Bad value for NAXIS (%d) in '%s' (%s)!",
                  fits->naxis,fits->file.path);
-
+ 
    for (axis=1;axis<=MAXNAXIS;axis++) fits->npix[axis] = 1;
 
    for (axis=1,fits->totpix=1;axis<=fits->naxis;axis++)
@@ -1280,24 +1062,24 @@ void load_image_header(fits_file *fits)
       sprintf(key,"NAXIS%d",axis);
       fits->npix[axis] = get_keyword_integer(fits,&fits->head,key);
       if (fits->npix[axis] < 1)
-         get_error("Invalid keyword NAXIS%d = %d in '%s'!",
+         get_error("Bad value for NAXIS%d (%d) in '%s' (%s)!",
                     axis,fits->npix[axis],fits->file.path);
       fits->totpix *= fits->npix[axis];
-
+ 
       sprintf(key,"CRPIX%d",axis);
       seq = find_fits_keyword(&fits->head,key);
       if (seq > 0)
          fits->crpix[axis] = read_keyword_double(fits,&fits->head,seq);
       else
          fits->crpix[axis] = 1.0;
-
+ 
       sprintf(key,"CRVAL%d",axis);
       seq = find_fits_keyword(&fits->head,key);
       if (seq > 0)
          fits->crval[axis] = read_keyword_double(fits,&fits->head,seq);
       else
          fits->crval[axis] = 1.0;
-
+ 
       sprintf(key,"CDELT%d",axis);
       seq = find_fits_keyword(&fits->head,key);
       if (seq > 0)
@@ -1305,20 +1087,6 @@ void load_image_header(fits_file *fits)
       else
          fits->cdelt[axis] = 1.0;
    }
-
-   fits->rowsize = fits->npix[1] * fits->pixsize;
-
-   seq = find_fits_keyword(&fits->head,"BSCALE");
-   if (seq > 0)
-      fits->bscale = read_keyword_double(fits,&fits->head,seq);
-   else
-      fits->bscale = 1.0;
-
-   seq = find_fits_keyword(&fits->head,"BZERO");
-   if (seq > 0)
-      fits->bzero = read_keyword_double(fits,&fits->head,seq);
-   else
-      fits->bzero = 0.0;
 
    set_img_totbinrec(fits);
    fits->bin = NULL;
@@ -1384,7 +1152,7 @@ void load_table_header(fits_file *fits)
       sprintf(key,"TTYPE%d",col);
       get_keyword_textual(fits,&fits->extend,key,
                           fits->colname[col],MAXCOLNAME);
-      trim_right(fits->colname[col]);
+      remove_trailing_blanks(fits->colname[col]);
    }
 
    if (total != fits->rowlen)
@@ -1489,11 +1257,11 @@ int vfits_table_ok(char *name,va_list ap)
 {
    fits_file fits;
    char card[CARD_BYTES];
-
+ 
    vset_fits_name(&fits,name,ap);
    open_fits_file(&fits);
    seek_fits_file(&fits,RECORD_BYTES,SEEK_SET);
-   read_fits_file(&fits,1,CARD_BYTES,(byte *)card);
+   read_fits_file(&fits,1,CARD_BYTES,card);
    close_fits_file(&fits);
 
    return(same_text(card,"XTENSION= 'BINTABLE'"));
@@ -1523,7 +1291,7 @@ void read_image_header(fits_file *fits,char *name, ...)
 {
    va_list ap;
 
-   va_start(ap,name);
+   va_start(ap,name); 
    vread_image_header(fits,name,ap);
    va_end(ap);
 }
@@ -1540,7 +1308,7 @@ void read_table_header(fits_file *fits,char *name, ...)
 {
    va_list ap;
 
-   va_start(ap,name);
+   va_start(ap,name); 
    vread_table_header(fits,name,ap);
    va_end(ap);
 }
@@ -1549,11 +1317,8 @@ fits_head *vread_fits_header(fits_file *fits,char *name,va_list ap)
 {
    int tab_ok;
    fits_head *head;
-   va_list aq;
 
-   va_copy(aq,ap);
-   tab_ok = vfits_table_ok(name,aq);
-   va_end(aq);
+   tab_ok = vfits_table_ok(name,ap);
    vset_fits_name(fits,name,ap);
    open_fits_file(fits);
    if (tab_ok)
@@ -1576,7 +1341,7 @@ fits_head *read_fits_header(fits_file *fits,char *name, ...)
    va_list ap;
    fits_head *head;
 
-   va_start(ap,name);
+   va_start(ap,name); 
    head = vread_fits_header(fits,name,ap);
    va_end(ap);
 
@@ -1594,7 +1359,7 @@ void read_binary_data(fits_file *fits)
 void read_image_pixels(fits_file *fits)
 {
    read_binary_data(fits);
-   invert_image_pixels(fits);
+   invert_image_pixels(fits);   
 }
 
 void vread_image(fits_file *fits,char *name,va_list ap)
@@ -1604,7 +1369,7 @@ void vread_image(fits_file *fits,char *name,va_list ap)
    load_image(fits);
    close_fits_file(fits);
 }
-
+ 
 void vread_table(fits_file *fits,char *name,va_list ap)
 {
    vset_fits_name(fits,name,ap);
@@ -1612,11 +1377,11 @@ void vread_table(fits_file *fits,char *name,va_list ap)
    load_table(fits);
    close_fits_file(fits);
 }
-
+ 
 void read_image(fits_file *fits,char *name,...)
 {
    va_list ap;
-
+ 
    va_start(ap,name);
    vread_image(fits,name,ap);
    va_end(ap);
@@ -1625,7 +1390,7 @@ void read_image(fits_file *fits,char *name,...)
 void read_table(fits_file *fits,char *name,...)
 {
    va_list ap;
-
+ 
    va_start(ap,name);
    vread_table(fits,name,ap);
    va_end(ap);
@@ -1638,11 +1403,11 @@ void vread_raw_image(fits_file *fits,char *name,va_list ap)
    load_raw_image(fits);
    close_fits_file(fits);
 }
-
+ 
 void read_raw_image(fits_file *fits,char *name,...)
 {
    va_list ap;
-
+ 
    va_start(ap,name);
    vread_raw_image(fits,name,ap);
    va_end(ap);
@@ -1655,11 +1420,11 @@ void vread_raw_table(fits_file *fits,char *name,va_list ap)
    load_raw_table(fits);
    close_fits_file(fits);
 }
-
+ 
 void read_raw_table(fits_file *fits,char *name,...)
 {
    va_list ap;
-
+ 
    va_start(ap,name);
    vread_raw_table(fits,name,ap);
    va_end(ap);
@@ -1684,7 +1449,7 @@ void vwrite_table(fits_file *fits,char *name,va_list ap)
 void write_image(fits_file *fits,char *name, ...)
 {
    va_list ap;
-
+ 
    va_start(ap,name);
    vwrite_image(fits,name,ap);
    va_end(ap);
@@ -1693,7 +1458,7 @@ void write_image(fits_file *fits,char *name, ...)
 void write_table(fits_file *fits,char *name, ...)
 {
    va_list ap;
-
+ 
    va_start(ap,name);
    vwrite_table(fits,name,ap);
    va_end(ap);
@@ -1710,7 +1475,7 @@ void vwrite_raw_image(fits_file *fits,char *name,va_list ap)
 void write_raw_image(fits_file *fits,char *name, ...)
 {
    va_list ap;
-
+ 
    va_start(ap,name);
    vwrite_raw_image(fits,name,ap);
    va_end(ap);
@@ -1727,7 +1492,7 @@ void vwrite_raw_table(fits_file *fits,char *name,va_list ap)
 void write_raw_table(fits_file *fits,char *name, ...)
 {
    va_list ap;
-
+ 
    va_start(ap,name);
    vwrite_raw_table(fits,name,ap);
    va_end(ap);
@@ -1778,12 +1543,9 @@ void check_fft_image(fits_file *x)
    int axis;
 
    for (axis=1;axis<=x->naxis;axis++)
-   {
       if (!power_of_two(x->npix[axis]))
-         get_error("check_fft_image: Invalid length (N=%d) "
-                 "for axis No. %d in '%s'!",
+         get_error("Bad number of pixels (%d) along axis %d in '%s'!",
                  x->npix[axis],axis,x->file.path);
-   }
 }
 
 void check_real_image(fits_file *fits)
@@ -1870,72 +1632,37 @@ void write_image_descriptor_textual(char *img,char *key,char *a,char *com)
    write_raw_image(&fits,img);
 }
 
-void update_fits_minmax(fits_file *fits)
-{
-   int k;
-   float min,max;
-
-   check_real_image(fits);
-   for (k=0,min=max=*fits->pix;k<fits->totpix;k++)
-   {
-      if (fits->pix[k] < min)
-         min = fits->pix[k];
-      else
-         if (fits->pix[k] > max) max = fits->pix[k];
-   }
-   write_keyword_float(fits,&fits->head,"DATAMIN",min,"Data minimum value");
-   write_keyword_float(fits,&fits->head,"DATAMAX",max,"Data maximum value");
-}
-
 void update_image_minmax(char *name)
 {
    fits_file fits;
+   int k;
+   float min,max;
 
    read_image(&fits,name);
-   update_fits_minmax(&fits);
-   write_image(&fits,name);
-}
-
-void locate_fits_max(fits_file *fits,float *maxpix,int *maxcol,int *maxrow)
-{
-   int row,col;
-   float *pixptr;
-
-   *maxpix = *fits->pix;
-   *maxrow = *maxcol = 1;
-   for (row=1,pixptr=fits->pix;row<=fits->npix[2];row++)
+   check_real_image(&fits);
+   for (k=0,min=max=*fits.pix;k<fits.totpix;k++)
    {
-      for (col=1;col<=fits->npix[1];col++,pixptr++)
-      {
-         if (*pixptr > *maxpix)
-         {
-            *maxpix = *pixptr;
-            *maxrow = row;
-            *maxcol = col;
-         }
-      }
+      if (fits.pix[k] < min)
+         min = fits.pix[k];
+      else
+         if (fits.pix[k] > max) max = fits.pix[k];
    }
-}
-
-void normalize_pixel_sum(fits_file *fits)
-{
-   int k;
-   float tot;
-
-   check_real_image(fits);
-   for (k=0,tot=0.0;k<fits->totpix;k++) tot += fits->pix[k];
-   if (tot == 0.0)
-      get_error("Cannot normalize a zero image (%s)!",fits->file.path);
-   for (k=0;k<fits->totpix;k++) fits->pix[k] /= tot;
-   update_fits_minmax(fits);
+   write_keyword_float(&fits,&fits.head,"DATAMIN",min,"Data minimum value");
+   write_keyword_float(&fits,&fits.head,"DATAMAX",max,"Data maximum value");
+   write_image(&fits,name);
 }
 
 void normalize_image(char *xname,char *yname)
 {
    fits_file fits;
+   int k;
+   float tot;
 
    read_image(&fits,xname);
-   normalize_pixel_sum(&fits);
+   check_real_image(&fits);
+   for (k=0,tot=0.0;k<fits.totpix;k++) tot += fits.pix[k];
+   if (tot == 0.0) get_error("Cannot normalize a zero image (%s)!",xname);
+   for (k=0;k<fits.totpix;k++) fits.pix[k] /= tot;
    write_image(&fits,yname);
 }
 
@@ -1954,90 +1681,6 @@ void locate_pixel(fits_file *fits,int k,int *pix)
       q = div(rest,block);
       pix[axis] = q.quot+1;
       rest = q.rem;
-   }
-}
-
-void xshift_image_fits(fits_file *fits,double q)
-{
-   int w,h;
-   int row,col,iq,acol,bcol;
-   float a,b;
-   double uq,vq;
-
-   if (q == 0) return;
-
-   w = fits->npix[1];
-   h = fits->npix[2];
-
-   iq = (int)floor(fabs(q));
-   uq = fabs(q) - iq;
-   vq = 1.0 - uq;
-
-   if (q > 0)
-   {
-      for (row=1;row<=h;row++)
-      {
-         for (col=w,bcol=w-iq;col>=1;col--,bcol--)
-         {
-            b = collect_pixel_value(fits,bcol,row);
-            a = collect_pixel_value(fits,bcol-1,row);
-            deposit_pixel_value(fits,col,row,a*uq+b*vq);
-         }
-      }
-   }
-   else
-   {
-      for (row=1;row<=h;row++)
-      {
-         for (col=1,acol=iq+1;col<=w;col++,acol++)
-         {
-            a = collect_pixel_value(fits,acol,row);
-            b = collect_pixel_value(fits,acol+1,row);
-            deposit_pixel_value(fits,col,row,a*vq+b*uq);
-         }
-      }
-   }
-}
-
-void yshift_image_fits(fits_file *fits,double q)
-{
-   int h,w;
-   int col,row,iq,arow,brow;
-   float a,b;
-   double uq,vq;
-
-   if (q == 0) return;
-
-   h = fits->npix[2];
-   w = fits->npix[1];
-
-   iq = (int)floor(fabs(q));
-   uq = fabs(q) - iq;
-   vq = 1.0 - uq;
-
-   if (q > 0)
-   {
-      for (col=1;col<=w;col++)
-      {
-         for (row=h,brow=h-iq;row>=1;row--,brow--)
-         {
-            b = collect_pixel_value(fits,col,brow);
-            a = collect_pixel_value(fits,col,brow-1);
-            deposit_pixel_value(fits,col,row,a*uq+b*vq);
-         }
-      }
-   }
-   else
-   {
-      for (col=1;col<=w;col++)
-      {
-         for (row=1,arow=iq+1;row<=h;row++,arow++)
-         {
-            a = collect_pixel_value(fits,col,arow);
-            b = collect_pixel_value(fits,col,arow+1);
-            deposit_pixel_value(fits,col,row,a*vq+b*uq);
-         }
-      }
    }
 }
 
@@ -2093,8 +1736,7 @@ void multiply_image_fits(fits_file *xfits,fits_file *yfits,fits_file *zfits)
    for (pix=1;pix<=xfits->totpix;pix++,xptr++,yptr++,zptr++)
       *zptr = (*xptr) * (*yptr);
 }
-
-void add_image_fits(fits_file *xfits,fits_file *yfits,fits_file *zfits)
+void divide_image_fits(fits_file *xfits,fits_file *yfits,fits_file *zfits)
 {
    float *xptr,*yptr,*zptr;
    int pix;
@@ -2106,7 +1748,7 @@ void add_image_fits(fits_file *xfits,fits_file *yfits,fits_file *zfits)
    zptr = zfits->pix;
 
    for (pix=1;pix<=xfits->totpix;pix++,xptr++,yptr++,zptr++)
-      *zptr = *xptr + *yptr;
+      *zptr = *xptr / *yptr;
 }
 
 void subtract_image_fits(fits_file *xfits,fits_file *yfits,fits_file *zfits)
@@ -2122,25 +1764,6 @@ void subtract_image_fits(fits_file *xfits,fits_file *yfits,fits_file *zfits)
 
    for (pix=1;pix<=xfits->totpix;pix++,xptr++,yptr++,zptr++)
       *zptr = *xptr - *yptr;
-}
-
-void add_image_file(char *xname,char *yname,char *zname,int pmod)
-{
-   fits_file xfits,yfits,zfits;
-
-   read_image(&xfits,xname);
-   read_image(&yfits,yname);
-
-   zfits = xfits;
-   allocate_whole_binary(&zfits);
-
-   add_image_fits(&xfits,&yfits,&zfits);
-
-   write_image(&zfits,zname);
-   if (pmod) inform("Image '%s' created.",zfits.file.path);
-
-   free_binary_data(&xfits);
-   free_binary_data(&yfits);
 }
 
 void subtract_image_file(char *xname,char *yname,char *zname,int pmod)
@@ -2162,67 +1785,23 @@ void subtract_image_file(char *xname,char *yname,char *zname,int pmod)
    free_binary_data(&yfits);
 }
 
-void image_div_scalar_fits(fits_file *xfits,fits_file *yfits,double val)
+void divide_image_file(char *xname,char *yname,char *zname,int pmod)
 {
-   float *xptr,*yptr;
-   int pix;
-
-   xptr = xfits->pix;
-   yptr = yfits->pix;
-
-   for (pix=1;pix<=xfits->totpix;pix++,xptr++,yptr++)
-      *yptr = *xptr / val;
-}
-
-void image_div_scalar_file(char *xname,char *yname,double val,int pmod)
-{
-   fits_file xfits,yfits;
+   fits_file xfits,yfits,zfits;
 
    read_image(&xfits,xname);
+   read_image(&yfits,yname);
 
-   yfits = xfits;
-   allocate_whole_binary(&yfits);
+   zfits = xfits;
+   allocate_whole_binary(&zfits);
 
-   image_div_scalar_fits(&xfits,&yfits,val);
+   divide_image_fits(&xfits,&yfits,&zfits);
 
-   write_image(&yfits,yname);
-   if (pmod) inform("Image '%s' created.",yfits.file.path);
+   write_image(&zfits,zname);
+   if (pmod) inform("Image '%s' created.",zfits.file.path);
 
    free_binary_data(&xfits);
-}
-
-void copy_keyword_fits(fits_file *afits,fits_head *ahead,
-  fits_file *bfits,fits_head *bhead,char *key)
-{
-  int seq;
-  char card[CARD_BYTES+1];
-
-  seq = get_fits_keyword(afits,ahead,key);
-  extract_fits_card(ahead,seq,card);
-  write_fits_card(bfits,bhead,card);
-}
-
-void copy_keyword_file(char *src,char *dest,char *key,int pmod)
-{
-  fits_file afits,bfits;
-  fits_head *head;
-
-  head = read_fits_header(&afits,src);
-
-  if (fits_table_ok(dest))
-  {
-    read_raw_table(&bfits,dest);
-    copy_keyword_fits(&afits,head,&bfits,&bfits.extend,key);
-    write_raw_table(&bfits,bfits.file.path);
-  }
-  else
-  {
-    read_raw_image(&bfits,dest);
-    copy_keyword_fits(&afits,head,&bfits,&bfits.head,key);
-    write_raw_image(&bfits,bfits.file.path);
-  }
-
-  if (pmod) inform("\nKeyword '%s' copied from '%s' to '%s'.",key,src,dest);
+   free_binary_data(&yfits);
 }
 
 void create_image(char *name,fits_head *head,int bitpix,int naxis,...)
@@ -2312,7 +1891,7 @@ void create_image(char *name,fits_head *head,int bitpix,int naxis,...)
          if (same_text(card,"DATE    =")) continue;
          if (same_text(card,"DATAMIN =")) continue;
          if (same_text(card,"DATAMAX =")) continue;
-         memmove(text,card,CARD_BYTES);
+         memcpy(text,card,CARD_BYTES);
          text[CARD_BYTES] = 0;
          insert_new_card(&fits,&fits.head,text);
       }
@@ -2328,17 +1907,17 @@ void create_image(char *name,fits_head *head,int bitpix,int naxis,...)
    write_raw_image(&fits,name);
 }
 
-/* ------------------------ FITS tables -------------------------- */
+/* ------------------------ FITS tables -------------------------- */ 
 
 void read_column_format(char *form,char *type,int *size)
 {
    char *ptr;
    int count;
-
+ 
    if (!digit_ok(*form))
       get_error("read_column_format: Bad format '%s'!",form);
    count = strtol(form,&ptr,10);
-
+ 
    switch(*ptr)
    {
       case 'J': *type = 'I';
@@ -2358,13 +1937,13 @@ void read_column_format(char *form,char *type,int *size)
 
    if (*type == '?')
       get_error("read_column_format: Bad format '%s'!",form);
-
+ 
    if (!blank_string(ptr+1))
       get_error("read_column_format: Bad format '%s'!",form);
-
+ 
    if (*type!='C' && count!=1)
       get_error("read_column_format: Bad format '%s'!",form);
-
+ 
    if (*type=='C' && count<1)
       get_error("read_column_format: Bad format '%s'!",form);
 }
@@ -2374,11 +1953,8 @@ void vcreate_fits_table(char **coldef,int nrows,char *name,va_list ap)
    fits_file fits;
    int k,col,seq,*val;
    fitskey_type key;
-   va_list aq;
 
-   va_copy(aq,ap);
-   vset_fits_name(&fits,name,aq);
-   va_end(aq);
+   vset_fits_name(&fits,name,ap);
 
    clear_primary_header(&fits);
    clear_extension_header(&fits);
@@ -2400,7 +1976,7 @@ void vcreate_fits_table(char **coldef,int nrows,char *name,va_list ap)
                                         "No primary data");
    write_keyword_logical(&fits,&fits.head,"EXTEND",'T',
                                         "There are extensions");
-
+ 
    write_keyword_textual(&fits,&fits.extend,"XTENSION","BINTABLE",
                                         "Binary table");
    write_keyword_integer(&fits,&fits.extend,"BITPIX",8,
@@ -2448,21 +2024,21 @@ void vcreate_fits_table(char **coldef,int nrows,char *name,va_list ap)
 int find_table_column(fits_file *t,char *c)
 {
    int col;
-
+ 
    for (col=1;col<=t->ncols && strcmp(t->colname[col],c);col++);
    if (strcmp(t->colname[col],c)) col = -1;
-
+ 
    return(col);
 }
 
 int get_table_column(fits_file *t,char *c)
 {
    int col;
-
+ 
    col = find_table_column(t,c);
    if (col < 1)
-      get_error("Table column '%s' not found in '%s'!",c,t->file.name);
-
+      get_error("Table column `%s' not found in `%s'!",c,t->file.name);
+ 
    return(col);
 }
 
@@ -2470,7 +2046,7 @@ void get_several_table_columns(fits_file *t,char *list,int *c,int n)
 {
    int i,k;
    char cname[MAXCOLNAME+1],*src,*dest;
-
+ 
    for (i=1,src=list;i<=n;i++)
    {
       memset(cname,0,MAXCOLNAME+1);
@@ -2496,8 +2072,8 @@ void read_table_column_double(fits_file *t,int col,double *x)
    int *iptr;
    float *fptr;
    char *offset;
-
-   offset = (char *)t->bin + t->coloffset[col];
+ 
+   offset = t->bin+t->coloffset[col];
    switch(t->coltype[col])
    {
       case 'I': iptr = (int *)offset;
@@ -2508,7 +2084,7 @@ void read_table_column_double(fits_file *t,int col,double *x)
                 for (row=1,x++;row<=t->nrows;row++,fptr++,x++)
                    *x = (double)(*fptr);
                 break;
-      case 'D': memmove(&x[1],offset,t->nrows*sizeof(double));
+      case 'D': memcpy(&x[1],offset,t->nrows*sizeof(double));
                 break;
       default:  get_error("Bad column type '%c'!",t->coltype[col]);
                 x=0;
@@ -2521,8 +2097,8 @@ void read_table_column_integer(fits_file *t,int col,int *x)
    float *fptr;
    double *dptr;
    char *offset;
-
-   offset = (char *)t->bin + t->coloffset[col];
+ 
+   offset = t->bin+t->coloffset[col];
    switch(t->coltype[col])
    {
       case 'D': dptr = (double *)offset;
@@ -2533,7 +2109,7 @@ void read_table_column_integer(fits_file *t,int col,int *x)
                 for (row=1,x++;row<=t->nrows;row++,fptr++,x++)
                    *x = (int)(*fptr);
                 break;
-      case 'I': memmove(&x[1],offset,t->nrows*sizeof(int));
+      case 'I': memcpy(&x[1],offset,t->nrows*sizeof(int));
                 break;
       default:  get_error("Bad column type '%c'!",t->coltype[col]);
                 x=0;
@@ -2546,8 +2122,8 @@ void write_table_column_double(fits_file *t,int col,double *x)
    int *iptr;
    float *fptr;
    char *offset;
-
-   offset = (char *)t->bin + t->coloffset[col];
+ 
+   offset = t->bin+t->coloffset[col];
    switch(t->coltype[col])
    {
       case 'I': iptr = (int *)offset;
@@ -2558,7 +2134,7 @@ void write_table_column_double(fits_file *t,int col,double *x)
                 for (row=1,x++;row<=t->nrows;row++,fptr++,x++)
                    *fptr = (float)(*x);
                 break;
-      case 'D': memmove(offset,&x[1],t->nrows*sizeof(double));
+      case 'D': memcpy(offset,&x[1],t->nrows*sizeof(double));
                 break;
       default:  get_error("Bad column type '%c'!",t->coltype[col]);
                 x=0;
@@ -2571,8 +2147,8 @@ void write_table_column_integer(fits_file *t,int col,int *x)
    float *fptr;
    double *dptr;
    char *offset;
-
-   offset = (char *)t->bin + t->coloffset[col];
+ 
+   offset = t->bin+t->coloffset[col];
    switch(t->coltype[col])
    {
       case 'D': dptr = (double *)offset;
@@ -2583,7 +2159,7 @@ void write_table_column_integer(fits_file *t,int col,int *x)
                 for (row=1,x++;row<=t->nrows;row++,fptr++,x++)
                    *fptr = (float)(*x);
                 break;
-      case 'I': memmove(offset,&x[1],t->nrows*sizeof(int));
+      case 'I': memcpy(offset,&x[1],t->nrows*sizeof(int));
                 break;
       default:  get_error("Bad column type '%c'!",t->coltype[col]);
                 x=0;

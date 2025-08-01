@@ -44,10 +44,7 @@
       double crpix[MAXNAXIS+1]; /* Reference pixel */
       double crval[MAXNAXIS+1]; /* Coordinate at reference pixel */
       double cdelt[MAXNAXIS+1]; /* Coordinate increment per pixel */
-      double bscale; /* Pixel value scale  */
-      double bzero; /* Pixel value offset  */
       int pixsize; /* Pixel size in bytes */
-      int rowsize; /* Pixel row size in bytes */
       int totpix;   /* Total number of pixels */
 
       /* ---- Extension header (binary table) ------ */
@@ -60,7 +57,7 @@
 
       int binstart;  /* Offset of the binary data block */
       int totbinrec;  /* Total number of binary data records */
-      byte *bin;   /* Binary FITS data */
+      unsigned char *bin;   /* Binary FITS data */
       float *pix; /* 32-bit real image pixels */
    }
    fits_file;
@@ -87,17 +84,16 @@
 
 #endif
 
+/* ------------------------ Function Declaration ------------------------ */
 void clear_fits_header(fits_head *head);
 void clear_primary_header(fits_file *fits);
 void clear_extension_header(fits_file *fits);
 int fits_key_char_ok(char c);
-int fits_keyword_name_ok(char *key);
 int extract_fits_keyname(char *s,fitskey_type key);
 char *normalize_fits_keyname(fitskey_type key,fitskey_type normkey);
 char *collect_keyname(fits_file *fits,fits_head *head,int row,
                       fitskey_type key);
 int find_fits_card(fits_head *head,char *text);
-void extract_fits_card(fits_head *head,int seq,char *card);
 int find_fits_comment(fits_head *head,char *com);
 int find_fits_keyword(fits_head *head,fitskey_type key);
 int get_fits_keyword(fits_file *fits,fits_head *head,fitskey_type key);
@@ -115,10 +111,8 @@ char get_keyword_logical(fits_file *fits,fits_head *head,char *key);
 int get_keyword_integer(fits_file *fits,fits_head *head,char *key);
 double get_keyword_double(fits_file *fits,fits_head *head,char *key);
 float get_keyword_float(fits_file *fits,fits_head *head,char *key);
-void get_keyword_filename(fits_file *fits,char *fname);
 void check_keyword_logical(fits_file *fits,fits_head *head,char *key,char a);
 void check_keyword_integer(fits_file *fits,fits_head *head,char *key,int a);
-void ensure_not_original_file(fits_file *fits);
 void remove_fits_cards(fits_file *fits,fits_head *head,int first,int last);
 void overwrite_existing_card(fits_head *head,int seq,char *text);
 void insert_new_card(fits_file *fits,fits_head *head,char *text);
@@ -136,11 +130,6 @@ void write_keyword_float(fits_file *fits,fits_head *head,char *key,
                          float a,char *com);
 void write_keyword_textual(fits_file *fits,fits_head *head,char *key,
                            char *a,char *com);
-void copy_fits_keyword
-  (fits_head *src,char *key,fits_file *fits,fits_head *head);
-void replace_value_field(fits_head *head,int seq,char *newval);
-void comment_out_fits_card(fits_head *head,int seq);
-void ensure_comment_card(fits_file *fits,fits_head *head,char *text);
 int find_regression_block(fits_head *head,char *key);
 int get_regression_block(fits_file *fits,fits_head *head,char *key);
 void remove_regression_block(fits_file *fits,fits_head *head,char *key);
@@ -166,7 +155,6 @@ double extract_double_value(fits_file *fits,fits_head *head,char *key,
                           int row,char *var);
 void extract_double_array(fits_file *fits,fits_head *head,char *key,
                           int row,char *var,double *a,int n);
-int get_array_dimension(fits_file *fits,fits_head *head,char *var);
 void get_double_array(fits_file *fits,fits_head *head,char *var,
                       double *a,int n);
 void read_regression_block(fits_file *fits,fits_head *head,char *key,
@@ -176,17 +164,11 @@ void set_img_totbinrec(fits_file *fits);
 void set_tbl_totbinrec(fits_file *fits);
 void allocate_whole_binary(fits_file *fits);
 void free_binary_data(fits_file *fits);
-double read_pixel_double(byte *bptr,int bitpix);
-void write_pixel_double(byte *bptr,int bitpix,double val);
 float collect_pixel_value(fits_file *fits,int x,int y);
 void collect_pixel_row(fits_file *fits,int row,double *val);
 void deposit_pixel_value(fits_file *fits,int x,int y,float val);
 void deposit_pixel_row(fits_file *fits,int row,double *val);
 void invert_image_pixels(fits_file *fits);
-void copy_pixel_rows
-   (fits_file *xfits,int xrow,fits_file *yfits,int yrow,int nrows);
-void copy_pixel_cols
-   (fits_file *xfits,int xcol,fits_file *yfits,int ycol,int ncols);
 void get_raw_fits_table_data(fits_file *fits);
 void get_normal_table_data(fits_file *fits);
 void vset_fits_name(fits_file *fits,char *name,va_list ap);
@@ -194,8 +176,8 @@ void set_fits_name(fits_file *fits,char *name, ...);
 void open_fits_file(fits_file *fits);
 void create_fits_file(fits_file *fits);
 void seek_fits_file(fits_file *fits,int offset,int whence);
-void read_fits_file(fits_file *fits,int size,int count,byte *buf);
-void write_fits_file(fits_file *fits,int size,int count,byte *buf);
+void read_fits_file(fits_file *fits,int size,int count,char *buf);
+void write_fits_file(fits_file *fits,int size,int count,char *buf);
 void close_fits_file(fits_file *fits);
 void load_fits_header(fits_file *fits,fits_head *head,char *signature);
 void load_primary_header(fits_file *fits);
@@ -264,26 +246,16 @@ void write_image_descriptor_double(char *img,char *key,double a,char *com);
 void write_image_descriptor_float(char *img,char *key,float a,char *com);
 void write_image_descriptor_logical(char *img,char *key,char a,char *com);
 void write_image_descriptor_textual(char *img,char *key,char *a,char *com);
-void update_fits_minmax(fits_file *fits);
 void update_image_minmax(char *name);
-void locate_fits_max(fits_file *fits,float *maxpix,int *maxcol,int *maxrow);
-void normalize_pixel_sum(fits_file *fits);
 void normalize_image(char *xname,char *yname);
 void locate_pixel(fits_file *fits,int k,int *pix);
-void xshift_image_fits(fits_file *fits,double q);
-void yshift_image_fits(fits_file *fits,double q);
 void stat_image_fits(fits_file *fits,imgstat *s);
 void stat_image_file(char *name,imgstat *s);
 void multiply_image_fits(fits_file *xfits,fits_file *yfits,fits_file *zfits);
-void add_image_fits(fits_file *xfits,fits_file *yfits,fits_file *zfits);
+void divide_image_fits(fits_file *xfits,fits_file *yfits,fits_file *zfits);
 void subtract_image_fits(fits_file *xfits,fits_file *yfits,fits_file *zfits);
-void add_image_file(char *xname,char *yname,char *zname,int pmod);
 void subtract_image_file(char *xname,char *yname,char *zname,int pmod);
-void image_div_scalar_fits(fits_file *xfits,fits_file *yfits,double val);
-void image_div_scalar_file(char *xname,char *yname,double val,int pmod);
-void copy_keyword_fits(fits_file *afits,fits_head *ahead,
-  fits_file *bfits,fits_head *bhead,char *key);
-void copy_keyword_file(char *src,char *dest,char *key,int pmod);
+void divide_image_file(char *xname,char *yname,char *zname,int pmod);
 void create_image(char *name,fits_head *head,int bitpix,int naxis,...);
 void read_column_format(char *form,char *type,int *size);
 void vcreate_fits_table(char **coldef,int nrows,char *name,va_list ap);
